@@ -1,0 +1,21 @@
+syntax = "proto3";
+package api;
+option go_package = "zk-rollups/api";
+import "google/api/annotations.proto";
+
+service LayerTwoService {
+  // Get BlockNumber
+  rpc GetBlockNumber(GetBlockNumberRequest) returns (GetBlockNumberResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/sessions"
+    };
+  }
+}
+
+message GetBlockNumberRequest {
+  string id = 1;
+}
+
+message GetBlockNumberResponse{
+  int32 number = 1;
+}
