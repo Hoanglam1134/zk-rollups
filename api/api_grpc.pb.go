@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type LayerTwoServiceClient interface {
 	// Get BlockNumber
 	GetBlockNumber(ctx context.Context, in *GetBlockNumberRequest, opts ...grpc.CallOption) (*GetBlockNumberResponse, error)
+	ProcessBlock(ctx context.Context, in *ProcessBlockRequest, opts ...grpc.CallOption) (*ProcessBlockResponse, error)
 }
 
 type layerTwoServiceClient struct {
@@ -43,12 +44,22 @@ func (c *layerTwoServiceClient) GetBlockNumber(ctx context.Context, in *GetBlock
 	return out, nil
 }
 
+func (c *layerTwoServiceClient) ProcessBlock(ctx context.Context, in *ProcessBlockRequest, opts ...grpc.CallOption) (*ProcessBlockResponse, error) {
+	out := new(ProcessBlockResponse)
+	err := c.cc.Invoke(ctx, "/api.LayerTwoService/ProcessBlock", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LayerTwoServiceServer is the server API for LayerTwoService service.
 // All implementations must embed UnimplementedLayerTwoServiceServer
 // for forward compatibility
 type LayerTwoServiceServer interface {
 	// Get BlockNumber
 	GetBlockNumber(context.Context, *GetBlockNumberRequest) (*GetBlockNumberResponse, error)
+	ProcessBlock(context.Context, *ProcessBlockRequest) (*ProcessBlockResponse, error)
 	mustEmbedUnimplementedLayerTwoServiceServer()
 }
 
@@ -58,6 +69,9 @@ type UnimplementedLayerTwoServiceServer struct {
 
 func (UnimplementedLayerTwoServiceServer) GetBlockNumber(context.Context, *GetBlockNumberRequest) (*GetBlockNumberResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlockNumber not implemented")
+}
+func (UnimplementedLayerTwoServiceServer) ProcessBlock(context.Context, *ProcessBlockRequest) (*ProcessBlockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ProcessBlock not implemented")
 }
 func (UnimplementedLayerTwoServiceServer) mustEmbedUnimplementedLayerTwoServiceServer() {}
 
@@ -90,6 +104,24 @@ func _LayerTwoService_GetBlockNumber_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LayerTwoService_ProcessBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProcessBlockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LayerTwoServiceServer).ProcessBlock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.LayerTwoService/ProcessBlock",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LayerTwoServiceServer).ProcessBlock(ctx, req.(*ProcessBlockRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // LayerTwoService_ServiceDesc is the grpc.ServiceDesc for LayerTwoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -100,6 +132,10 @@ var LayerTwoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBlockNumber",
 			Handler:    _LayerTwoService_GetBlockNumber_Handler,
+		},
+		{
+			MethodName: "ProcessBlock",
+			Handler:    _LayerTwoService_ProcessBlock_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

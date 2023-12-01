@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"google.golang.org/grpc"
@@ -22,19 +21,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Retrieve the block number
-	number, err := client.BlockNumber(context.Background())
-	if err != nil {
-		log.Fatalf("Error retrieving accounts: %v", err)
-	}
-
-	fmt.Println("Get Eth Number Block", number)
-	if err := RunServer(); err != nil {
+	if err := RunServer(client); err != nil {
 		os.Exit(1)
 	}
 }
 
-func RunServer() error {
+func RunServer(client *ethclient.Client) error {
 	listen, err := net.Listen("tcp", ServerAddress)
 	if err != nil {
 		return err
@@ -42,7 +34,7 @@ func RunServer() error {
 
 	// register service
 	grpcServer := grpc.NewServer()
-	api.RegisterLayerTwoServiceServer(grpcServer, service.NewService())
+	api.RegisterLayerTwoServiceServer(grpcServer, service.NewService(client))
 
 	// start server
 	fmt.Println("Server is running on ", ServerAddress)
