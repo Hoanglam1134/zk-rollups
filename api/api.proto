@@ -10,22 +10,6 @@ service LayerTwoService {
       get: "/block-number"
     };
   }
-
-  rpc ProcessBlock(ProcessBlockRequest) returns (ProcessBlockResponse) {
-    option (google.api.http) = {
-      post: "/process-block"
-      body: "*"
-    };
-  }
-}
-
-message ProcessBlockRequest {
-  string id = 1;
-  bytes block = 2;
-}
-
-message ProcessBlockResponse {
-  int32 number = 1;
 }
 
 message GetBlockNumberRequest {

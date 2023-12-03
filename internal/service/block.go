@@ -12,7 +12,7 @@ func (s *Service) GetBlockNumber(ctx context.Context, request *api.GetBlockNumbe
 	if err != nil {
 		return nil, err
 	}
-	return &api.GetBlockNumberResponse{Number: int32(number)}, nil
+	return &api.GetBlockNumberResponse{Number: int32(number + 1)}, nil
 }
 
 func (s *Service) ProcessDeposit(request *api.ProcessBlockRequest) (*api.ProcessBlockResponse, error) {

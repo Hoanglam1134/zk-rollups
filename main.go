@@ -1,23 +1,33 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"zk-rollups/api"
 	"zk-rollups/internal/service"
-	"zk-rollups/library/server"
 )
 
 const (
-	ServerAddress = "0.0.0.0:9090"
+	GrpcAddress         = "0.0.0.0:9090"
+	GanacheAddressLocal = "http://localhost:8545"
+	HttpAddress         = ":8081"
+)
+
+var (
+	grpcServerEndpoint = flag.String("grpc-server-endpoint", "localhost:9090", "gRPC server endpoint")
 )
 
 func main() {
-	client, err := ethclient.Dial("http://localhost:8545")
+	client, err := ethclient.Dial(GanacheAddressLocal)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -28,7 +38,7 @@ func main() {
 }
 
 func RunServer(client *ethclient.Client) error {
-	listen, err := net.Listen("tcp", ServerAddress)
+	listen, err := net.Listen("tcp", GrpcAddress)
 	if err != nil {
 		return err
 	}
@@ -37,47 +47,27 @@ func RunServer(client *ethclient.Client) error {
 	grpcServer := grpc.NewServer()
 	api.RegisterLayerTwoServiceServer(grpcServer, service.NewService(client))
 
-	service, err := newService(cfg)
+	// start server: gRPC
+	go func() {
+		log.Fatal(grpcServer.Serve(listen))
+	}()
+
+	// start proxy: HTTP
+	var ctx context.Context
+	ctx = context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Register gRPC server endpoint
+	// Note: Make sure the gRPC server is running properly and accessible
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	err = api.RegisterLayerTwoServiceHandlerFromEndpoint(ctx, mux, *grpcServerEndpoint, opts)
 	if err != nil {
-		logger.Error(err, "Cannot init server")
 		return err
 	}
-	s, err := server.New(
-		server.WithGatewayAddrListen(cfg.Server.HTTP),
-		server.WithGrpcAddrListen(cfg.Server.GRPC),
-		server.WithServiceServer(service),
-	)
-	if err != nil {
-		logger.Error(err, "Error new server")
-		return err
-	}
 
-	if err := s.Serve(); err != nil {
-		logger.Error(err, "Error start server")
-		return err
-	}
-	return nil
-
-	// start server
-	fmt.Println("Server is running on ", ServerAddress)
-	return grpcServer.Serve(listen)
-}
-
-func newService() (*service.Service, error) {
-	db, err := newDB(cfg.WarehouseServiceDB.String())
-	if err != nil {
-		logger.Error(err, "Error connect database")
-		return nil, err
-	}
-	store := store.NewStore(db, logger)
-
-	// Order Client
-	orderClientConnect, err := grpc.DialContext(context.Background(), cfg.OrderServiceAddr, grpc.WithInsecure())
-	orderClient := orderApi.NewOrderServiceClient(orderClientConnect)
-
-	// AccountClient
-	accountClientConnect, err := grpc.DialContext(context.Background(), cfg.AccountServiceAddr, grpc.WithInsecure())
-	accountClient := accountApi.NewAccountServiceClient(accountClientConnect)
-
-	return service.NewService(cfg, logger, store, orderClient, accountClient), nil
+	fmt.Println("HTTP server listening on port 8081")
+	// Start HTTP server (and proxy calls to gRPC server endpoint)
+	return http.ListenAndServe(HttpAddress, mux)
 }
