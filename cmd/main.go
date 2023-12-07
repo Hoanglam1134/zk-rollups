@@ -32,7 +32,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := RunServer(client); err != nil {
+	// connect to ganache provider: done
+	// init account tree: not yet
+	// deploy smart contracts (middleware, verifier, mimc):
+	// start stream listen event from smart contracts
+
+	err = DeploySmartContract(client)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err = RunServer(client); err != nil {
 		os.Exit(1)
 	}
 }
@@ -59,7 +69,6 @@ func RunServer(client *ethclient.Client) error {
 	defer cancel()
 
 	// Register gRPC server endpoint
-	// Note: Make sure the gRPC server is running properly and accessible
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	err = api.RegisterLayerTwoServiceHandlerFromEndpoint(ctx, mux, *grpcServerEndpoint, opts)
