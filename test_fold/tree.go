@@ -1,10 +1,10 @@
 package main
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"math/rand"
-	"strconv"
+	"math/big"
+
+	"github.com/iden3/go-iden3-crypto/mimc7"
 )
 
 type Node struct {
@@ -13,44 +13,58 @@ type Node struct {
 
 const HEIGHT = 4
 
+// single struct
+// ------------------------------------------------------------------------
 type Account struct {
-	Index   int
-	Address []byte
-	Nonce   []byte
-	Balance int // Not sure what to put here though
-}
-
-func MiMCHash(a []byte, b []byte) []byte {
-	data := make([]byte, 0)
-	data = append(data, a...)
-	data = append(data, b...)
-	// f := sha256.Sum()
-	hash := sha256.Sum256(data)
-	return hash[:]
-}
-
-func (a *Account) GetHash() []byte {
-	// f := bn254.MiMC()
-	if a == nil {
-		hash_zero := sha256.Sum256([]byte{0})
-
-		return hash_zero[:]
-	}
-
-	data := make([]byte, 0)
-	data = append(data, []byte(strconv.Itoa(a.Index))...)
-	data = append(data, a.Address...)
-	data = append(data, a.Nonce...)
-	data = append(data, []byte(strconv.Itoa(a.Balance))...)
-
-	hash := sha256.Sum256(data)
-
-	return hash[:]
+	Index      int
+	PubX, PubY []byte
+	Nonce      []byte
+	Balance    int // Not sure what to put here though
 }
 
 type AccountTree struct {
 	Arr  [1 << (HEIGHT - 1)]*Account
 	Tree [(1 << (HEIGHT)) - 1]Node
+}
+
+type Transaction struct {
+	// Thông tin lấy từ bên code của Hiếu
+	FromX, FromY   []byte
+	ToX, ToY       []byte
+	Nonce, Ammount []byte
+	R8x, R8y       []byte
+	S              []byte
+}
+
+// ------------------------------------------------------------------------
+
+// new MỉMC Hash
+// Beed atleast one byte to work properly, or else we will get empty result
+func MiMCHash(datas ...[]byte) []byte {
+	res := make([]byte, 0)
+	fmt.Println(datas)
+	for _, x := range datas {
+		res = append(res, x...)
+	}
+	res = mimc7.HashBytes(res).Bytes()
+	return res[:]
+}
+
+func (a *Account) GetHash() []byte {
+	var hash []byte
+	if a == nil {
+		hash = MiMCHash([]byte{0})
+
+	} else {
+		hash = MiMCHash(
+			// []byte(strconv.Itoa(a.Index)), // old way to change from int to byte
+			big.NewInt(int64(a.Index)).Bytes(),
+			a.PubX, a.PubY,
+			a.Nonce,
+			big.NewInt(int64(a.Balance)).Bytes(),
+		)
+	}
+	return hash[:]
 }
 
 func NewAccountTree() *AccountTree {
@@ -59,28 +73,32 @@ func NewAccountTree() *AccountTree {
 	for i := 0; i < (1 << (HEIGHT - 1)); i++ {
 		index_number := i + (1 << (HEIGHT - 1)) - 1
 		tree.Arr[i] = &Account{
-			Index:   i,
-			Address: []byte(fmt.Sprintf("This is index: %d", i)),
-			Nonce:   []byte(fmt.Sprintf("%d", rand.Intn(1<<20))),
+			Index:   0,
+			PubX:    []byte{0},
+			PubY:    []byte{0},
+			Nonce:   []byte{0},
 			Balance: 0,
 		}
-
 		tree.Tree[index_number] = Node{tree.Arr[i].GetHash()}
 	}
-
 	// Update the hash of the node from upper layer to the root
 	for index := (1 << (HEIGHT - 1)) - 2; index >= 0; index-- {
-		tree.Tree[index] = Node{MiMCHash(tree.Tree[index*2+1].hash, tree.Tree[index*2+2].hash)}
+		tree.Tree[index] = Node{
+			hash: MiMCHash(
+				tree.Tree[index*2+1].hash,
+				tree.Tree[index*2+2].hash,
+			),
+		}
 	}
 	return tree
 }
 
-// this one for later
-// func (a Account) acceptSendTx(amount int) []byte {
-// 	return make([]byte, 0)
-// }
+func NewTx(fromX, fromY, toX, toY, nonce []byte, amount int, r8x, r8y, s []byte) *Transaction {
+	result := new(Transaction)
 
-func testTree() {
+}
+
+func main() {
 	tree := NewAccountTree()
 
 	for i := 0; i < (1<<(HEIGHT) - 1); i++ {
