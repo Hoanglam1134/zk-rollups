@@ -29,11 +29,17 @@ type AccountTree struct {
 
 type Transaction struct {
 	// Thông tin lấy từ bên code của Hiếu
-	FromX, FromY   []byte
-	ToX, ToY       []byte
-	Nonce, Ammount []byte
-	R8x, R8y       []byte
-	S              []byte
+	FromX, FromY []byte
+	ToX, ToY     []byte
+	Nonce        []byte
+	Amount       int64
+	R8x, R8y     []byte
+	S            []byte
+}
+
+type TxTree struct {
+	Arr  [1 << (HEIGHT - 1)]*Transaction
+	Tree [(1 << (HEIGHT)) - 1]Node
 }
 
 // ------------------------------------------------------------------------
@@ -49,6 +55,8 @@ func MiMCHash(datas ...[]byte) []byte {
 	res = mimc7.HashBytes(res).Bytes()
 	return res[:]
 }
+
+// -- Method
 
 func (a *Account) GetHash() []byte {
 	var hash []byte
@@ -66,6 +74,27 @@ func (a *Account) GetHash() []byte {
 	}
 	return hash[:]
 }
+
+func (a *Transaction) GetHash() []byte {
+	var hash []byte
+	if a == nil {
+		hash = MiMCHash([]byte{0})
+
+	} else {
+		hash = MiMCHash(
+			// []byte(strconv.Itoa(a.Index)), // old way to change from int to byte
+			a.FromX, a.FromY,
+			a.ToX, a.ToY,
+			a.Nonce,
+			big.NewInt(a.Amount).Bytes(),
+			a.R8x, a.R8y,
+			a.S,
+		)
+	}
+	return hash[:]
+}
+
+// ------------------------------------------------------------------------
 
 func NewAccountTree() *AccountTree {
 	tree := new(AccountTree)
@@ -93,9 +122,38 @@ func NewAccountTree() *AccountTree {
 	return tree
 }
 
-func NewTx(fromX, fromY, toX, toY, nonce []byte, amount int, r8x, r8y, s []byte) *Transaction {
-	result := new(Transaction)
+func NewTxTree() *TxTree {
+	tree := new(TxTree)
+	// Create the last layer of the tree
+	for i := 0; i < (1 << (HEIGHT - 1)); i++ {
+		index_number := i + (1 << (HEIGHT - 1)) - 1
+		tree.Arr[i] = new(Transaction)
+		tree.Tree[index_number] = Node{tree.Arr[i].GetHash()}
+	}
+	// Update the hash of the node from upper layer to the root
+	for index := (1 << (HEIGHT - 1)) - 2; index >= 0; index-- {
+		tree.Tree[index] = Node{
+			hash: MiMCHash(
+				tree.Tree[index*2+1].hash,
+				tree.Tree[index*2+2].hash,
+			),
+		}
+	}
+	return tree
+}
 
+func NewTx(fromX, fromY, toX, toY, nonce []byte, amount int64, r8x, r8y, s []byte) *Transaction {
+	return &Transaction{
+		FromX:  fromX,
+		FromY:  fromY,
+		ToX:    toX,
+		ToY:    toY,
+		Nonce:  nonce,
+		Amount: amount,
+		R8x:    r8x,
+		R8y:    r8y,
+		S:      s,
+	}
 }
 
 func main() {
