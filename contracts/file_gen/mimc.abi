@@ -1,26 +1,25 @@
- [
+[
     {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "name": "MiMCpe7",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "pure",
-      "type": "function"
+        "constant": true,
+        "inputs": [
+            {
+                "name": "in_x",
+                "type": "uint256"
+            },
+            {
+                "name": "in_k",
+                "type": "uint256"
+            }
+        ],
+        "name": "MiMCpe7",
+        "outputs": [
+            {
+                "name": "out_x",
+                "type": "uint256"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "pure",
+        "type": "function"
     }
-  ]
+]

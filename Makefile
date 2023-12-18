@@ -14,3 +14,6 @@ ganache:
 
 run:
 	go run cmd/*.go
+
+test:
+	go run test_fold/main.go

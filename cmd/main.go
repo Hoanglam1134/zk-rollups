@@ -18,7 +18,7 @@ import (
 
 const (
 	GrpcAddress         = "0.0.0.0:9090"
-	GanacheAddressLocal = "http://localhost:8545"
+	GanacheAddressLocal = "ws://localhost:8545"
 	HttpAddress         = ":8081"
 )
 
@@ -33,15 +33,15 @@ func main() {
 	}
 
 	// connect to ganache provider: done
-	// init account tree: not yet
-	// deploy smart contracts (middleware, verifier, mimc):
-	// start stream listen event from smart contracts
+	// init account tree: Kham
+	// deploy smart contracts (middleware, verifier, mimc): done
+	// start stream listen event from smart contracts: doing
 
 	err = DeploySmartContract(client)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	fmt.Println("Deploy smart contracts successfully")
 	if err = RunServer(client); err != nil {
 		os.Exit(1)
 	}
@@ -64,7 +64,6 @@ func RunServer(client *ethclient.Client) error {
 
 	// start proxy: HTTP
 	var ctx context.Context
-	ctx = context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

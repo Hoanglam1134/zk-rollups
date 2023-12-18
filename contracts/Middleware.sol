@@ -88,6 +88,11 @@ contract Middleware is DepositRegisterVerifier {
         noDepositExistenceTx = 0;
         coordinator = msg.sender;
         accountRoots.push(initializationAccountRoot);
+        emit dGetString("Middleware is deployed");
+    }
+
+    function debugCalled() public {
+        emit dGetString("Middleware is deployed, also, debug is called: ");
     }
 
     function deposit(
