@@ -21,34 +21,17 @@ import (
 	"time"
 	"zk-rollups/contracts/middleware_contract"
 	"zk-rollups/contracts/mimc_contract"
+	"zk-rollups/internal/models"
 	"zk-rollups/utils"
+)
+
+var (
+	DepositRegisterTxs []models.TransactionEvent
 )
 
 type AddressesFile struct {
 	AddressesMap   map[string]string `json:"addresses"`
 	PrivateKeysMap map[string]string `json:"private_keys"`
-}
-
-type Transaction struct {
-	FromX  *big.Int
-	FromY  *big.Int
-	ToX    *big.Int
-	ToY    *big.Int
-	Amount *big.Int
-	R8X    *big.Int
-	R8Y    *big.Int
-	S      *big.Int
-}
-
-type TransactionEvent struct {
-	FromX  [32]byte
-	FromY  [32]byte
-	ToX    [32]byte
-	ToY    [32]byte
-	Amount *big.Int
-	R8X    [32]byte
-	R8Y    [32]byte
-	S      [32]byte
 }
 
 //func (tx *Transaction) NewTx(fromX, fromY, toX, toY *big.Int, amount *big.Int) Transaction {
@@ -136,7 +119,7 @@ func DeploySmartContract(client *ethclient.Client) (err error) {
 				fmt.Println("error subscribe filter logs")
 				log.Fatal(err)
 			case vLog := <-logs:
-				fmt.Println("Handle contract log")
+				fmt.Println("\nHandle contract log")
 				waitGr <- 1
 				handleMiddlewareLog(vLog)
 			}
@@ -145,13 +128,20 @@ func DeploySmartContract(client *ethclient.Client) (err error) {
 
 	// ================== Call contracts ==================
 	// test deposit from 2 -> 3
-	//auth2, _ := loadAuth(addressesFile, client, 2)
+	auth2, _ := loadAuth(addressesFile, client, 2)
 	<-waitGr
 	depositTx := debugCreateTx(addressesFile, 15)
-	tx, err := middlewareInstance.Deposit(auth1, [32]byte(depositTx.FromX.Bytes()), [32]byte(depositTx.FromY.Bytes()),
-		[32]byte(depositTx.ToX.Bytes()), [32]byte(depositTx.ToY.Bytes()), depositTx.Amount, [32]byte{0}, [32]byte{0}, [32]byte{0})
-	fmt.Printf("\ntx middlewareInstance.Deposit sent: %s", tx.Hash().Hex())
 
+	//  prepare data
+	fromX := utils.ConvertToBytes32(depositTx.FromX.Bytes())
+	fromY := utils.ConvertToBytes32(depositTx.FromY.Bytes())
+	toX := utils.ConvertToBytes32(depositTx.ToX.Bytes())
+	toY := utils.ConvertToBytes32(depositTx.ToY.Bytes())
+	r8x := utils.ConvertToBytes32(depositTx.R8X.Bytes())
+	r8y := utils.ConvertToBytes32(depositTx.R8Y.Bytes())
+	s := utils.ConvertToBytes32(depositTx.S.Bytes())
+	tx, err := middlewareInstance.Deposit(auth2, fromX, fromY, toX, toY, depositTx.Amount, r8x, r8y, s)
+	_ = tx
 	//<-waitGr
 	//debugTx, err := middlewareInstance.DebugCalled(auth1)
 	//fmt.Printf("\ntx middlewareInstance.DebugCalled sent: %s", debugTx.Hash().Hex())
@@ -211,7 +201,7 @@ func loadAuth(addressesFile AddressesFile, client *ethclient.Client, index int) 
 	return auth, nil
 }
 
-func debugCreateTx(addressesFile AddressesFile, amount int) Transaction {
+func debugCreateTx(addressesFile AddressesFile, amount int) models.Transaction {
 	// #1 not done yet
 	//filePubKeys := maps.Keys(addressesFile.AddressesMap)
 	//
@@ -230,13 +220,18 @@ func debugCreateTx(addressesFile AddressesFile, amount int) Transaction {
 	edDsaPubkeyFrom := privKey1.Public()
 	edDsaPubkeyTo := privKey2.Public()
 
-	return Transaction{
+	tx := models.Transaction{
 		FromX:  edDsaPubkeyFrom.Point().X,
 		FromY:  edDsaPubkeyFrom.Point().Y,
 		ToX:    edDsaPubkeyTo.Point().X,
 		ToY:    edDsaPubkeyTo.Point().Y,
 		Amount: big.NewInt(int64(amount)),
 	}
+
+	// sign Tx, also set new values to R8X, R8Y, S
+	_ = tx.SignTx(privKey1)
+	fmt.Println("\ntx: ", tx)
+	return tx
 }
 
 func handleMiddlewareLog(vLog types.Log) {
@@ -260,18 +255,38 @@ func handleMiddlewareLog(vLog types.Log) {
 			fmt.Println("event: ", event)
 		}
 	case utils.TopicDepositRegister:
+		fmt.Println("Handling event eDepositRegister")
 		events, err := middlewareContractAbi.Unpack(utils.NameDepositRegister, vLog.Data)
 		if err != nil {
 			fmt.Println("error Unpack middleware event eDepositRegister")
 			log.Fatal(err)
 		}
-		data := TransactionEvent{}
+		data := models.TransactionEvent{}
 		data.FromX = events[0].([32]byte)
 		data.FromY = events[1].([32]byte)
 		data.ToX = events[2].([32]byte)
 		data.ToY = events[3].([32]byte)
 		data.Amount = events[4].(*big.Int)
-		fmt.Println("data: ", data)
+		data.R8X = events[5].([32]byte)
+		data.R8Y = events[6].([32]byte)
+		data.S = events[7].([32]byte)
+		fmt.Println("\ndata: ", data)
+
+		DepositRegisterTxs = append(DepositRegisterTxs, data)
+		if len(DepositRegisterTxs) == 4 {
+			Rollup(DepositRegisterTxs)
+		}
+	}
+}
+
+func Rollup(txs []models.TransactionEvent) {
+	// TODO: implement rollup:
+	for idx, tx := range txs {
+		fmt.Printf("\nRollup: %d: %s", idx, tx)
+		// TODO: implement rollups
+		// 1. check tx valid (maybe)
+		// 2. find empty slot in account tree
+		// 3. update ...
 	}
 }
 

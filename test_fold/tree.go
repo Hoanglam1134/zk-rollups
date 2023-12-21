@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/iden3/go-iden3-crypto/babyjub"
 	"math/big"
 
 	"github.com/iden3/go-iden3-crypto/mimc7"
@@ -92,6 +93,10 @@ func (a *Transaction) GetHash() []byte {
 		)
 	}
 	return hash[:]
+}
+
+func (tx *Transaction) SignTx() *babyjub.Signature {
+
 }
 
 // ------------------------------------------------------------------------
