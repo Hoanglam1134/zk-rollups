@@ -26,26 +26,14 @@ import (
 )
 
 var (
-	DepositRegisterTxs []models.TransactionEvent
+	DepositRegisterTxs []*models.Transaction
+	//DepositExistenceTxs []models.TransactionEvent
 )
 
 type AddressesFile struct {
 	AddressesMap   map[string]string `json:"addresses"`
 	PrivateKeysMap map[string]string `json:"private_keys"`
 }
-
-//func (tx *Transaction) NewTx(fromX, fromY, toX, toY *big.Int, amount *big.Int) Transaction {
-//	return Transaction{
-//		FromX:  fromX,
-//		FromY:  fromY,
-//		ToX:    toX,
-//		ToY:    toY,
-//		Amount: amount,
-//		R8X:    nil,
-//		R8Y:    nil,
-//		S:      nil,
-//	}
-//}
 
 func LoadJsonAccounts() AddressesFile {
 	// load user "index" from json file to deploy contracts
@@ -65,6 +53,9 @@ func LoadJsonAccounts() AddressesFile {
 }
 
 func DeploySmartContract(client *ethclient.Client) (err error) {
+	// ================ Init Account Tree ================
+	accountTree := models.NewAccountTree()
+
 	// ================== Deploy contracts ==================
 	// load json file accounts
 	addressesFile := LoadJsonAccounts()
@@ -90,7 +81,6 @@ func DeploySmartContract(client *ethclient.Client) (err error) {
 	_ = mimcAddress
 
 	// Middleware contract
-	//mimcAddressFake := common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3")
 	initialAccountRoot := [32]byte{}
 	middlewareAddress, middTx, middlewareInstance, err := middleware_contract.DeployMiddlewareContract(auth1, client, mimcAddress, initialAccountRoot)
 	if err != nil {
@@ -102,17 +92,15 @@ func DeploySmartContract(client *ethclient.Client) (err error) {
 	_ = middTx
 	_ = middlewareAddress
 
-	// ================== Subscribing Log ==================
+	//================== Subscribing Log ==================
 	sub, logs, err := subscribeLogs(middlewareAddress, client)
 	if err != nil {
 		fmt.Println("error subscribe filter logs")
 		log.Fatal(err)
 	}
-	waitGr := make(chan int)
-	// goroutine to handle logs
-	go func(sub ethereum.Subscription, logs chan types.Log, waitGr chan int) {
+	//goroutine to handle logs
+	go func(sub ethereum.Subscription, logs chan types.Log, tree *models.AccountTree) {
 		fmt.Println("Start goroutine to handle logs")
-		waitGr <- 1
 		for {
 			select {
 			case err := <-sub.Err():
@@ -120,35 +108,36 @@ func DeploySmartContract(client *ethclient.Client) (err error) {
 				log.Fatal(err)
 			case vLog := <-logs:
 				fmt.Println("\nHandle contract log")
-				waitGr <- 1
-				handleMiddlewareLog(vLog)
+				handleMiddlewareLog(vLog, tree)
 			}
 		}
-	}(sub, logs, waitGr)
+	}(sub, logs, accountTree)
 
 	// ================== Call contracts ==================
 	// test deposit from 2 -> 3
 	auth2, _ := loadAuth(addressesFile, client, 2)
-	<-waitGr
-	depositTx := debugCreateTx(addressesFile, 15)
-
-	//  prepare data
-	fromX := utils.ConvertToBytes32(depositTx.FromX.Bytes())
-	fromY := utils.ConvertToBytes32(depositTx.FromY.Bytes())
-	toX := utils.ConvertToBytes32(depositTx.ToX.Bytes())
-	toY := utils.ConvertToBytes32(depositTx.ToY.Bytes())
-	r8x := utils.ConvertToBytes32(depositTx.R8X.Bytes())
-	r8y := utils.ConvertToBytes32(depositTx.R8Y.Bytes())
-	s := utils.ConvertToBytes32(depositTx.S.Bytes())
-	tx, err := middlewareInstance.Deposit(auth2, fromX, fromY, toX, toY, depositTx.Amount, r8x, r8y, s)
-	_ = tx
 	//<-waitGr
-	//debugTx, err := middlewareInstance.DebugCalled(auth1)
-	//fmt.Printf("\ntx middlewareInstance.DebugCalled sent: %s", debugTx.Hash().Hex())
-	//fmt.Println("\ndone call debug contract")
-	<-waitGr
+
+	for i := 1; i <= 4; i++ {
+		depositTx := debugCreateTx(addressesFile, 15)
+		//  prepare data
+		fromX := utils.ConvertToBytes32(depositTx.FromX)
+		fromY := utils.ConvertToBytes32(depositTx.FromY)
+		toX := utils.ConvertToBytes32(depositTx.ToX)
+		toY := utils.ConvertToBytes32(depositTx.ToY)
+		r8x := utils.ConvertToBytes32(depositTx.R8X)
+		r8y := utils.ConvertToBytes32(depositTx.R8Y)
+		s := utils.ConvertToBytes32(depositTx.S)
+		tx, err := middlewareInstance.Deposit(auth2, fromX, fromY, toX, toY, depositTx.Amount, r8x, r8y, s)
+		if err != nil {
+			fmt.Println("error call deposit middleware contract")
+			log.Fatal(err)
+		}
+		_ = tx
+	}
 	for {
-		time.Sleep(1000 * time.Millisecond)
+		// waiting time for see results
+		time.Sleep(60000 * time.Millisecond)
 	}
 	return nil
 }
@@ -221,20 +210,19 @@ func debugCreateTx(addressesFile AddressesFile, amount int) models.Transaction {
 	edDsaPubkeyTo := privKey2.Public()
 
 	tx := models.Transaction{
-		FromX:  edDsaPubkeyFrom.Point().X,
-		FromY:  edDsaPubkeyFrom.Point().Y,
-		ToX:    edDsaPubkeyTo.Point().X,
-		ToY:    edDsaPubkeyTo.Point().Y,
+		FromX:  edDsaPubkeyFrom.Point().X.Bytes(),
+		FromY:  edDsaPubkeyFrom.Point().Y.Bytes(),
+		ToX:    edDsaPubkeyTo.Point().X.Bytes(),
+		ToY:    edDsaPubkeyTo.Point().Y.Bytes(),
 		Amount: big.NewInt(int64(amount)),
 	}
 
 	// sign Tx, also set new values to R8X, R8Y, S
 	_ = tx.SignTx(privKey1)
-	fmt.Println("\ntx: ", tx)
 	return tx
 }
 
-func handleMiddlewareLog(vLog types.Log) {
+func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 	// TODO: need convert it as a const to use later
 	middlewareContractAbi, err := abi.JSON(strings.NewReader(middleware_contract.MiddlewareContractMetaData.ABI))
 	if err != nil {
@@ -261,33 +249,69 @@ func handleMiddlewareLog(vLog types.Log) {
 			fmt.Println("error Unpack middleware event eDepositRegister")
 			log.Fatal(err)
 		}
-		data := models.TransactionEvent{}
-		data.FromX = events[0].([32]byte)
-		data.FromY = events[1].([32]byte)
-		data.ToX = events[2].([32]byte)
-		data.ToY = events[3].([32]byte)
-		data.Amount = events[4].(*big.Int)
-		data.R8X = events[5].([32]byte)
-		data.R8Y = events[6].([32]byte)
-		data.S = events[7].([32]byte)
-		fmt.Println("\ndata: ", data)
+		DepositRegisterTxs = append(DepositRegisterTxs, &models.Transaction{
+			FromX:  events[0].([]byte),
+			FromY:  events[1].([]byte),
+			ToX:    events[2].([]byte),
+			ToY:    events[3].([]byte),
+			Amount: events[4].(*big.Int),
+			R8X:    events[5].([]byte),
+			R8Y:    events[6].([]byte),
+			S:      events[7].([]byte),
+		})
+		if len(DepositRegisterTxs) == utils.RollupSize {
+			fmt.Println("ROLLING UP ...")
+			Rollup(accountTree, DepositRegisterTxs)
 
-		DepositRegisterTxs = append(DepositRegisterTxs, data)
-		if len(DepositRegisterTxs) == 4 {
-			Rollup(DepositRegisterTxs)
 		}
+	default:
+		fmt.Println("error: not found event")
 	}
 }
 
-func Rollup(txs []models.TransactionEvent) {
-	// TODO: implement rollup:
-	for idx, tx := range txs {
-		fmt.Printf("\nRollup: %d: %s", idx, tx)
-		// TODO: implement rollups
-		// 1. check tx valid (maybe)
-		// 2. find empty slot in account tree
-		// 3. update ...
+// Rollup is a function to update account tree
+// -
+func Rollup(accountTree *models.AccountTree, txs []*models.Transaction) *models.DepositRegisterProof {
+	oldAccountRoot := accountTree.GetRoot()
+	accounts := models.ToListAccounts(txs)
+	newAccountTree := models.NewTreeFromAccounts(accounts)
+
+	// Verify signature
+	for _, tx := range txs {
+		valid := tx.VerifyTx()
+		if !valid {
+			fmt.Println("error: tx invalid, wrong signature")
+			return nil
+		}
 	}
+
+	// Find empty tree node
+	emptyNodeIndex := accountTree.FindEmptyNodeIndex()
+	if emptyNodeIndex == -1 {
+		fmt.Println("error: tree is full")
+		return nil
+	}
+	emptyNodeProof, emptyNodeProofPos := accountTree.GetProof(emptyNodeIndex)
+
+	// Update new account tree to main tree
+	accountTree.AddSubTree(emptyNodeIndex, newAccountTree)
+	accountTree.ReHashing(emptyNodeIndex)
+	newAccountRoot := accountTree.GetRoot()
+
+	// print file json
+	finalProof := &models.DepositRegisterProof{
+		OldAccountRoot:    oldAccountRoot,
+		NewAccountRoot:    newAccountRoot,
+		ProofEmptyTree:    emptyNodeProof,
+		ProofPosEmptyTree: emptyNodeProofPos,
+		DepositRegisterTx: nil,
+	}
+	errJson := utils.PrintJson(finalProof)
+	if errJson != nil {
+		fmt.Println("error print json")
+		log.Fatal(errJson)
+	}
+	return nil
 }
 
 func subscribeLogs(middlewareAddress common.Address, client *ethclient.Client) (ethereum.Subscription, chan types.Log, error) {
@@ -297,7 +321,6 @@ func subscribeLogs(middlewareAddress common.Address, client *ethclient.Client) (
 	}
 	logs := make(chan types.Log)
 
-	fmt.Println("Subscribe filter logs") //debug: remove later
 	sub, err := client.SubscribeFilterLogs(context.Background(), query, logs)
 	if err != nil {
 		fmt.Println("error subscribe filter logs")

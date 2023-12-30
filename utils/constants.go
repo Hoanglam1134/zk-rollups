@@ -10,3 +10,19 @@ const (
 	NameDebugCalled     = "dGetString"
 	NameDepositRegister = "eDepositRegister"
 )
+
+const (
+	TreeHeight  = 4
+	AccountSize = 8
+)
+
+const (
+	RollupSize = 4
+)
+
+var HashZeros = [][]byte{
+	{1, 1, 1, 1},
+	{1, 1, 1, 1},
+	{1, 1, 1, 1},
+	{1, 1, 1, 1},
+}
