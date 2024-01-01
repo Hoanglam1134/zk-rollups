@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"os"
 	"zk-rollups/api"
+	"zk-rollups/contracts/middleware_contract"
+	"zk-rollups/internal/models"
 	"zk-rollups/internal/service"
 )
 
@@ -37,17 +39,17 @@ func main() {
 	// deploy smart contracts (middleware, verifier, mimc): done
 	// start stream listen event from smart contracts: doing
 
-	err = DeploySmartContract(client)
+	accountTree, middIns, err := DeploySmartContract(client)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("Deploy smart contracts successfully")
-	if err = RunServer(client); err != nil {
+	if err = RunServer(client, accountTree, middIns); err != nil {
 		os.Exit(1)
 	}
 }
 
-func RunServer(client *ethclient.Client) error {
+func RunServer(client *ethclient.Client, accountTree *models.AccountTree, middlewareInstance *middleware_contract.MiddlewareContract) error {
 	listen, err := net.Listen("tcp", GrpcAddress)
 	if err != nil {
 		return err
@@ -55,7 +57,7 @@ func RunServer(client *ethclient.Client) error {
 
 	// register service
 	grpcServer := grpc.NewServer()
-	api.RegisterLayerTwoServiceServer(grpcServer, service.NewService(client))
+	api.RegisterLayerTwoServiceServer(grpcServer, service.NewService(client, accountTree, middlewareInstance))
 
 	// start server: gRPC
 	go func() {
@@ -63,7 +65,7 @@ func RunServer(client *ethclient.Client) error {
 	}()
 
 	// start proxy: HTTP
-	var ctx context.Context
+	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

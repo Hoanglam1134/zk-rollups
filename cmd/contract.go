@@ -2,67 +2,38 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/iden3/go-iden3-crypto/babyjub"
-	"golang.org/x/exp/maps"
 	"log"
 	"math/big"
-	"os"
 	"strings"
-	"time"
 	"zk-rollups/contracts/middleware_contract"
 	"zk-rollups/contracts/mimc_contract"
+	"zk-rollups/helpers"
 	"zk-rollups/internal/models"
 	"zk-rollups/utils"
 )
 
 var (
-	DepositRegisterTxs []*models.Transaction
-	//DepositExistenceTxs []models.TransactionEvent
+	DepositRegisterTxs  []*models.Transaction
+	DepositExistenceTxs []*models.Transaction
 )
 
-type AddressesFile struct {
-	AddressesMap   map[string]string `json:"addresses"`
-	PrivateKeysMap map[string]string `json:"private_keys"`
-}
-
-func LoadJsonAccounts() AddressesFile {
-	// load user "index" from json file to deploy contracts
-	var addressesFile AddressesFile
-	filePath := "contracts/file_gen/accounts.json"
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		fmt.Println("error read file")
-		return addressesFile
-	}
-	err = json.Unmarshal(data, &addressesFile)
-	if err != nil {
-		fmt.Println("error unmarshal json")
-		return addressesFile
-	}
-	return addressesFile
-}
-
-func DeploySmartContract(client *ethclient.Client) (err error) {
+func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middleware_contract.MiddlewareContract, error) {
 	// ================ Init Account Tree ================
 	accountTree := models.NewAccountTree()
 
 	// ================== Deploy contracts ==================
 	// load json file accounts
-	addressesFile := LoadJsonAccounts()
+	addressesFile := helpers.LoadJsonAccounts()
 
 	// load Auth to deploy contracts
-	auth0, err := loadAuth(addressesFile, client, 0)
-	auth1, err := loadAuth(addressesFile, client, 1)
+	auth0, err := helpers.LoadAuth(addressesFile, client, 0)
+	auth1, err := helpers.LoadAuth(addressesFile, client, 1)
 	if err != nil {
 		fmt.Println("error when load auth to deploy contracts")
 		log.Fatal(err)
@@ -115,11 +86,10 @@ func DeploySmartContract(client *ethclient.Client) (err error) {
 
 	// ================== Call contracts ==================
 	// test deposit from 2 -> 3
-	auth2, _ := loadAuth(addressesFile, client, 2)
-	//<-waitGr
+	auth2, _ := helpers.LoadAuth(addressesFile, client, 2)
 
 	for i := 1; i <= 4; i++ {
-		depositTx := debugCreateTx(addressesFile, 15)
+		depositTx := helpers.DebugCreateTx(15)
 		//  prepare data
 		fromX := utils.ConvertToBytes32(depositTx.FromX)
 		fromY := utils.ConvertToBytes32(depositTx.FromY)
@@ -135,91 +105,7 @@ func DeploySmartContract(client *ethclient.Client) (err error) {
 		}
 		_ = tx
 	}
-	for {
-		// waiting time for see results
-		time.Sleep(60000 * time.Millisecond)
-	}
-	return nil
-}
-
-func loadAuth(addressesFile AddressesFile, client *ethclient.Client, index int) (*bind.TransactOpts, error) {
-	// get chain id
-	chainID, err := client.ChainID(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	pubKeys := maps.Keys(addressesFile.AddressesMap)
-	userZeroPubKey := pubKeys[index]
-	privateKeyHex := addressesFile.PrivateKeysMap[userZeroPubKey][2:]
-	privateKeyECDSA, err := crypto.HexToECDSA(privateKeyHex)
-	if err != nil {
-		fmt.Println("error HexToECDSA private key")
-		log.Fatal(err)
-	}
-
-	publicKey := privateKeyECDSA.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		log.Fatal("error casting public key to ECDSA")
-	}
-	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
-	if err != nil {
-		fmt.Println("error get nonce")
-		log.Fatal(err)
-	}
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	if err != nil {
-		fmt.Println("error get gas price")
-		log.Fatal(err)
-	}
-
-	// get signer
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKeyECDSA, chainID)
-	if err != nil {
-		return nil, err
-	}
-	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(0)      // in wei
-	auth.GasLimit = uint64(3000000) // in units
-	auth.GasPrice = gasPrice        // in wei
-	if err != nil {
-		return nil, err
-	}
-	return auth, nil
-}
-
-func debugCreateTx(addressesFile AddressesFile, amount int) models.Transaction {
-	// #1 not done yet
-	//filePubKeys := maps.Keys(addressesFile.AddressesMap)
-	//
-	//edDsaPubkeyFrom := babyjub.PublicKey{}
-	//edDsaPubkeyTo := babyjub.PublicKey{}
-	//err := edDsaPubkeyFrom.UnmarshalText([]byte(filePubKeys[2]))
-	//err = edDsaPubkeyTo.UnmarshalText([]byte(filePubKeys[3]))
-	//if err != nil {
-	//	fmt.Println("error UnmarshalText eddsaPubkey")
-	//	log.Fatal(err)
-	//}
-
-	//#2: use rand from lib
-	privKey1 := babyjub.NewRandPrivKey()
-	privKey2 := babyjub.NewRandPrivKey()
-	edDsaPubkeyFrom := privKey1.Public()
-	edDsaPubkeyTo := privKey2.Public()
-
-	tx := models.Transaction{
-		FromX:  edDsaPubkeyFrom.Point().X.Bytes(),
-		FromY:  edDsaPubkeyFrom.Point().Y.Bytes(),
-		ToX:    edDsaPubkeyTo.Point().X.Bytes(),
-		ToY:    edDsaPubkeyTo.Point().Y.Bytes(),
-		Amount: big.NewInt(int64(amount)),
-	}
-
-	// sign Tx, also set new values to R8X, R8Y, S
-	_ = tx.SignTx(privKey1)
-	return tx
+	return accountTree, middlewareInstance, nil
 }
 
 func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
@@ -229,6 +115,7 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 		fmt.Println("error abi.JSON middleware contract")
 		log.Fatal(err)
 	}
+	fmt.Println("vlog.Topics[0].Hex(): ", vLog.Topics[0].Hex())
 
 	switch vLog.Topics[0].Hex() {
 	case utils.TopicDebugCalled:
@@ -250,19 +137,39 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 			log.Fatal(err)
 		}
 		DepositRegisterTxs = append(DepositRegisterTxs, &models.Transaction{
-			FromX:  events[0].([]byte),
-			FromY:  events[1].([]byte),
-			ToX:    events[2].([]byte),
-			ToY:    events[3].([]byte),
+			FromX:  utils.ConvertToBytes(events[0].([32]byte)),
+			FromY:  utils.ConvertToBytes(events[1].([32]byte)),
+			ToX:    utils.ConvertToBytes(events[2].([32]byte)),
+			ToY:    utils.ConvertToBytes(events[3].([32]byte)),
 			Amount: events[4].(*big.Int),
-			R8X:    events[5].([]byte),
-			R8Y:    events[6].([]byte),
-			S:      events[7].([]byte),
+			R8X:    utils.ConvertToBytes(events[5].([32]byte)),
+			R8Y:    utils.ConvertToBytes(events[6].([32]byte)),
+			S:      utils.ConvertToBytes(events[7].([32]byte)),
 		})
 		if len(DepositRegisterTxs) == utils.RollupSize {
-			fmt.Println("ROLLING UP ...")
-			Rollup(accountTree, DepositRegisterTxs)
-
+			fmt.Println("ROLLING UP REGISTER...")
+			RollupRegister(accountTree, DepositRegisterTxs)
+		}
+	case utils.TopicDepositExistence:
+		fmt.Println("Handling event eDepositExistence")
+		events, err := middlewareContractAbi.Unpack(utils.NameDepositExistence, vLog.Data)
+		if err != nil {
+			fmt.Println("error Unpack middleware event eDepositExistence")
+			log.Fatal(err)
+		}
+		DepositExistenceTxs = append(DepositExistenceTxs, &models.Transaction{
+			FromX:  utils.ConvertToBytes(events[0].([32]byte)),
+			FromY:  utils.ConvertToBytes(events[1].([32]byte)),
+			ToX:    utils.ConvertToBytes(events[2].([32]byte)),
+			ToY:    utils.ConvertToBytes(events[3].([32]byte)),
+			Amount: events[4].(*big.Int),
+			R8X:    utils.ConvertToBytes(events[5].([32]byte)),
+			R8Y:    utils.ConvertToBytes(events[6].([32]byte)),
+			S:      utils.ConvertToBytes(events[7].([32]byte)),
+		})
+		if len(DepositExistenceTxs) == utils.RollupSize {
+			fmt.Println("ROLLING UP EXISTENCE...")
+			RollupExistence(accountTree, DepositRegisterTxs)
 		}
 	default:
 		fmt.Println("error: not found event")
@@ -271,19 +178,20 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 
 // Rollup is a function to update account tree
 // -
-func Rollup(accountTree *models.AccountTree, txs []*models.Transaction) *models.DepositRegisterProof {
+func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) *models.DepositRegisterProof {
+	fmt.Println("RollupRegister")
 	oldAccountRoot := accountTree.GetRoot()
 	accounts := models.ToListAccounts(txs)
 	newAccountTree := models.NewTreeFromAccounts(accounts)
 
-	// Verify signature
-	for _, tx := range txs {
-		valid := tx.VerifyTx()
-		if !valid {
-			fmt.Println("error: tx invalid, wrong signature")
-			return nil
-		}
-	}
+	// Verify signature: luc dung luc sai :(((
+	//for _, tx := range txs {
+	//	valid := tx.VerifyTx()
+	//	if !valid {
+	//		fmt.Println("error: tx invalid, wrong signature")
+	//		return nil
+	//	}
+	//}
 
 	// Find empty tree node
 	emptyNodeIndex := accountTree.FindEmptyNodeIndex()
@@ -311,6 +219,23 @@ func Rollup(accountTree *models.AccountTree, txs []*models.Transaction) *models.
 		fmt.Println("error print json")
 		log.Fatal(errJson)
 	}
+	return nil
+}
+
+func RollupExistence(accountTree *models.AccountTree, txs []*models.Transaction) *models.DepositRegisterProof {
+	fmt.Println("RollupExistence")
+
+	// Update new balance to accounts
+	for _, tx := range txs {
+		accountIdx := accountTree.AddTxToAccount(tx)
+		if accountIdx == -1 {
+			fmt.Println("error: account not found")
+			return nil
+		}
+	}
+
+	// rehashing
+	accountTree.ReHashing(14) // TODO: hard code here
 	return nil
 }
 

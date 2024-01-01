@@ -4,18 +4,38 @@ option go_package = "zk-rollups/api";
 import "google/api/annotations.proto";
 
 service LayerTwoService {
-  // Get BlockNumber
-  rpc GetBlockNumber(GetBlockNumberRequest) returns (GetBlockNumberResponse) {
+  // GetAccountStatus
+  rpc GetAccountsStatus(GetAccountsStatusRequest) returns (GetAccountsStatusResponse) {
     option (google.api.http) = {
-      get: "/block-number"
+      get: "/status"
+    };
+  }
+
+  // DebugDepositExistence
+  rpc DebugDepositExistence(DebugDepositExistenceRequest) returns (DebugDepositExistenceResponse) {
+    option (google.api.http) = {
+      get: "/debug/deposit-existence"
     };
   }
 }
 
-message GetBlockNumberRequest {
+message GetAccountsStatusRequest {
   string id = 1;
 }
 
-message GetBlockNumberResponse{
-  int32 number = 1;
+message GetAccountsStatusResponse {
+  message Account {
+    int32 id = 1;
+    string publicKey = 2;
+    string balance = 3;
+  }
+  repeated Account accounts = 1;
+}
+
+message DebugDepositExistenceRequest {
+  string id = 1;
+}
+
+message DebugDepositExistenceResponse {
+  string res = 1;
 }

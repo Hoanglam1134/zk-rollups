@@ -60,14 +60,15 @@ func (tx *Transaction) VerifyTx() bool {
 // Used to create a list of new accounts
 func ToListAccounts(txs []*Transaction) []*Account {
 	accounts := make([]*Account, len(txs))
-	for _, tx := range txs {
-		accounts = append(accounts, &Account{
+	for i, tx := range txs {
+		accounts[i] = &Account{
 			// -1 means this account is not in the tree
-			Index: -1,
-			PubX:  tx.FromX,
-			PubY:  tx.FromY,
-			Nonce: tx.Nonce,
-		})
+			Index:   -1,
+			PubX:    tx.ToX,
+			PubY:    tx.ToY,
+			Nonce:   tx.Nonce,
+			Balance: tx.Amount,
+		}
 	}
 	return accounts
 }

@@ -22,9 +22,10 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type LayerTwoServiceClient interface {
-	// Get BlockNumber
-	GetBlockNumber(ctx context.Context, in *GetBlockNumberRequest, opts ...grpc.CallOption) (*GetBlockNumberResponse, error)
-	ProcessBlock(ctx context.Context, in *ProcessBlockRequest, opts ...grpc.CallOption) (*ProcessBlockResponse, error)
+	// GetAccountStatus
+	GetAccountsStatus(ctx context.Context, in *GetAccountsStatusRequest, opts ...grpc.CallOption) (*GetAccountsStatusResponse, error)
+	// DebugDepositExistence
+	DebugDepositExistence(ctx context.Context, in *DebugDepositExistenceRequest, opts ...grpc.CallOption) (*DebugDepositExistenceResponse, error)
 }
 
 type layerTwoServiceClient struct {
@@ -35,18 +36,18 @@ func NewLayerTwoServiceClient(cc grpc.ClientConnInterface) LayerTwoServiceClient
 	return &layerTwoServiceClient{cc}
 }
 
-func (c *layerTwoServiceClient) GetBlockNumber(ctx context.Context, in *GetBlockNumberRequest, opts ...grpc.CallOption) (*GetBlockNumberResponse, error) {
-	out := new(GetBlockNumberResponse)
-	err := c.cc.Invoke(ctx, "/api.LayerTwoService/GetBlockNumber", in, out, opts...)
+func (c *layerTwoServiceClient) GetAccountsStatus(ctx context.Context, in *GetAccountsStatusRequest, opts ...grpc.CallOption) (*GetAccountsStatusResponse, error) {
+	out := new(GetAccountsStatusResponse)
+	err := c.cc.Invoke(ctx, "/api.LayerTwoService/GetAccountsStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *layerTwoServiceClient) ProcessBlock(ctx context.Context, in *ProcessBlockRequest, opts ...grpc.CallOption) (*ProcessBlockResponse, error) {
-	out := new(ProcessBlockResponse)
-	err := c.cc.Invoke(ctx, "/api.LayerTwoService/ProcessBlock", in, out, opts...)
+func (c *layerTwoServiceClient) DebugDepositExistence(ctx context.Context, in *DebugDepositExistenceRequest, opts ...grpc.CallOption) (*DebugDepositExistenceResponse, error) {
+	out := new(DebugDepositExistenceResponse)
+	err := c.cc.Invoke(ctx, "/api.LayerTwoService/DebugDepositExistence", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -57,9 +58,10 @@ func (c *layerTwoServiceClient) ProcessBlock(ctx context.Context, in *ProcessBlo
 // All implementations must embed UnimplementedLayerTwoServiceServer
 // for forward compatibility
 type LayerTwoServiceServer interface {
-	// Get BlockNumber
-	GetBlockNumber(context.Context, *GetBlockNumberRequest) (*GetBlockNumberResponse, error)
-	ProcessBlock(context.Context, *ProcessBlockRequest) (*ProcessBlockResponse, error)
+	// GetAccountStatus
+	GetAccountsStatus(context.Context, *GetAccountsStatusRequest) (*GetAccountsStatusResponse, error)
+	// DebugDepositExistence
+	DebugDepositExistence(context.Context, *DebugDepositExistenceRequest) (*DebugDepositExistenceResponse, error)
 	mustEmbedUnimplementedLayerTwoServiceServer()
 }
 
@@ -67,11 +69,11 @@ type LayerTwoServiceServer interface {
 type UnimplementedLayerTwoServiceServer struct {
 }
 
-func (UnimplementedLayerTwoServiceServer) GetBlockNumber(context.Context, *GetBlockNumberRequest) (*GetBlockNumberResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBlockNumber not implemented")
+func (UnimplementedLayerTwoServiceServer) GetAccountsStatus(context.Context, *GetAccountsStatusRequest) (*GetAccountsStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAccountsStatus not implemented")
 }
-func (UnimplementedLayerTwoServiceServer) ProcessBlock(context.Context, *ProcessBlockRequest) (*ProcessBlockResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ProcessBlock not implemented")
+func (UnimplementedLayerTwoServiceServer) DebugDepositExistence(context.Context, *DebugDepositExistenceRequest) (*DebugDepositExistenceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DebugDepositExistence not implemented")
 }
 func (UnimplementedLayerTwoServiceServer) mustEmbedUnimplementedLayerTwoServiceServer() {}
 
@@ -86,38 +88,38 @@ func RegisterLayerTwoServiceServer(s grpc.ServiceRegistrar, srv LayerTwoServiceS
 	s.RegisterService(&LayerTwoService_ServiceDesc, srv)
 }
 
-func _LayerTwoService_GetBlockNumber_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetBlockNumberRequest)
+func _LayerTwoService_GetAccountsStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAccountsStatusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LayerTwoServiceServer).GetBlockNumber(ctx, in)
+		return srv.(LayerTwoServiceServer).GetAccountsStatus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.LayerTwoService/GetBlockNumber",
+		FullMethod: "/api.LayerTwoService/GetAccountsStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LayerTwoServiceServer).GetBlockNumber(ctx, req.(*GetBlockNumberRequest))
+		return srv.(LayerTwoServiceServer).GetAccountsStatus(ctx, req.(*GetAccountsStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _LayerTwoService_ProcessBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ProcessBlockRequest)
+func _LayerTwoService_DebugDepositExistence_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DebugDepositExistenceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LayerTwoServiceServer).ProcessBlock(ctx, in)
+		return srv.(LayerTwoServiceServer).DebugDepositExistence(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.LayerTwoService/ProcessBlock",
+		FullMethod: "/api.LayerTwoService/DebugDepositExistence",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LayerTwoServiceServer).ProcessBlock(ctx, req.(*ProcessBlockRequest))
+		return srv.(LayerTwoServiceServer).DebugDepositExistence(ctx, req.(*DebugDepositExistenceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -130,12 +132,12 @@ var LayerTwoService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*LayerTwoServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetBlockNumber",
-			Handler:    _LayerTwoService_GetBlockNumber_Handler,
+			MethodName: "GetAccountsStatus",
+			Handler:    _LayerTwoService_GetAccountsStatus_Handler,
 		},
 		{
-			MethodName: "ProcessBlock",
-			Handler:    _LayerTwoService_ProcessBlock_Handler,
+			MethodName: "DebugDepositExistence",
+			Handler:    _LayerTwoService_DebugDepositExistence_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

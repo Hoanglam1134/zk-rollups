@@ -17,6 +17,10 @@ func ConvertToBytes32(data []byte) [32]byte {
 	return src
 }
 
+func ConvertToBytes(data [32]byte) []byte {
+	return data[:]
+}
+
 // MiMCHash calculate hash of inputs
 // return hash as *big.Int
 func MiMCHash(inputs ...[]byte) *big.Int {

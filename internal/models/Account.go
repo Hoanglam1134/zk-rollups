@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"github.com/iden3/go-iden3-crypto/babyjub"
 	"math/big"
 	"zk-rollups/utils"
 )
@@ -10,7 +11,7 @@ type Account struct {
 	Index      int
 	PubX, PubY []byte
 	Nonce      []byte
-	Balance    int // Not sure what to put here though
+	Balance    *big.Int
 }
 
 // AccountTree is a Merkle tree of accounts
@@ -32,12 +33,19 @@ type TxTree struct {
 func (a *Account) GetHash() []byte {
 	var hash []byte
 	hash = utils.MiMCHash(
-		big.NewInt(int64(a.Index)).Bytes(),
 		a.PubX, a.PubY,
 		a.Nonce,
-		big.NewInt(int64(a.Balance)).Bytes(),
+		a.Balance.Bytes(),
 	).Bytes()
 	return hash[:]
+}
+
+func (a *Account) GetPubkeyShow() string {
+	pk := babyjub.PublicKey{
+		X: utils.ByteToBigInt(a.PubX),
+		Y: utils.ByteToBigInt(a.PubY),
+	}
+	return pk.String()
 }
 
 // ------------------------------------------------------------------------
@@ -52,7 +60,7 @@ func NewAccountTree() *AccountTree {
 			PubX:    []byte{0},
 			PubY:    []byte{0},
 			Nonce:   []byte{0},
-			Balance: 0,
+			Balance: big.NewInt(0),
 		}
 		tree.Node[indexNumber] = tree.Arr[i].GetHash()
 	}
@@ -132,25 +140,35 @@ func (tree *AccountTree) GetRoot() []byte {
 func (tree *AccountTree) AddSubTree(index int, subTree *AccountTree) {
 	// update hash value
 	level := 0
-	for i, hash := range subTree.Node {
+	for i := 0; i < len(subTree.Node); i++ {
 		// find index of the node in the tree
 		// level change when i = 1, 3, 7, 15 => all bit of i is 1
 		if i&(i+1) == 0 {
-			level++
+			fmt.Printf("AddSubTree: level = %d, i: %d \n", level, i)
+			level += 1
 		}
-		tree.Node[(index<<level)+i] = hash
+		fmt.Println("AddSubTree: index = ", (index<<level)+i)
+		tree.Node[(index<<level)+i] = subTree.Node[i]
+		if i == 6 {
+			// TODO: hard code here
+			break
+		}
 	}
 
 	// update leaf nodes: accounts
 	if index == 2 {
 		fmt.Println("AddSubTree: index = 2")
 		level = 4
+	} else {
+		level = 0
 	}
 	for i, account := range subTree.Arr {
+		if account == nil {
+			continue
+		}
 		tree.Arr[i+level] = account
+		tree.Arr[i+level].Index = i + level
 	}
-
-	// re-hash tree
 }
 
 func (tree *AccountTree) PrintTree() {
@@ -176,6 +194,41 @@ func (tree *AccountTree) ReHashing(index int) {
 		}
 		index = (index - 1) / 2
 	}
+}
+
+// AddTxToAccount add tx to account
+// it is used for update tx to an existing account
+func (tree *AccountTree) AddTxToAccount(tx *Transaction) int {
+	for i, currAcc := range tree.Arr {
+		if currAcc == nil {
+			continue
+		}
+		if utils.ByteEqual(currAcc.PubX, tx.ToX) && utils.ByteEqual(currAcc.PubY, tx.ToY) {
+			// find the account => update
+			fmt.Println("AddTxToAccount: update account")
+			fmt.Println("AddTxToAccount: old balance = ", currAcc.Balance.String())
+			fmt.Println("AddTxToAccount: tx amount = ", tx.Amount.String())
+			tree.Arr[i].Balance.Add(tree.Arr[i].Balance, tx.Amount)
+			fmt.Println("AddTxToAccount: new balance 1 = ", currAcc.Balance.String())
+			fmt.Println("AddTxToAccount: new balance 2 = ", tree.Arr[i].Balance.String())
+			return i
+		}
+	}
+	return -1
+}
+
+func (tree *AccountTree) UpdateAccount(acc *Account) int {
+	for i, currAcc := range tree.Arr {
+		if currAcc == nil {
+			continue
+		}
+		if utils.ByteEqual(currAcc.PubX, acc.PubX) && utils.ByteEqual(currAcc.PubY, acc.PubY) {
+			// find the account => update
+			tree.Arr[i] = acc
+			return i
+		}
+	}
+	return -1
 }
 
 //func NewTxTree() *TxTree {
