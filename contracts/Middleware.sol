@@ -77,6 +77,16 @@ contract Middleware is DepositRegisterVerifier {
         bytes32 r8y,
         bytes32 s
     );
+    event eTransfer(
+        bytes32 fromX,
+        bytes32 fromY,
+        bytes32 toX,
+        bytes32 toY,
+        uint amount,
+        bytes32 r8x,
+        bytes32 r8y,
+        bytes32 s
+    );
     event sDepositRegister(bool b);
 
     constructor(
@@ -245,6 +255,33 @@ contract Middleware is DepositRegisterVerifier {
         depositAccountRoots.pop();
         noDepositRegisterTx -= 4;
         emit sDepositRegister(true);
+    }
+
+    function transferLayer2(
+        bytes32 fromX,
+        bytes32 fromY,
+        bytes32 toX,
+        bytes32 toY,
+        uint amount,
+        bytes32 r8x,
+        bytes32 r8y,
+        bytes32 s
+    ) public {
+        // require(uint(amount) * 1e18 == msg.value, "amount*1e18 != msg.value");
+        address senderAddress = address(
+            bytes20((keccak256(abi.encodePacked(fromX, fromY))) << 96)
+        );
+        address receiverAddress = address(
+            bytes20((keccak256(abi.encodePacked(toX, toY))) << 96)
+        );
+
+        // check if sender and receiver are existed
+        if (!(existedPubkeys[receiverAddress]&&existedPubkeys[senderAddress])) {
+            emit dGetString("Sender or receiver is not existed");
+            return;
+        } else {
+            emit eTransfer(fromX, fromY, toX, toY, amount, r8x, r8y, s);
+        }
     }
 
     function update() private {}

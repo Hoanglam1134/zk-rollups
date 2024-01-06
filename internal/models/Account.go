@@ -196,21 +196,23 @@ func (tree *AccountTree) ReHashing(index int) {
 	}
 }
 
-// AddTxToAccount add tx to account
+// AddBalanceToAccount add tx to account
 // it is used for update tx to an existing account
-func (tree *AccountTree) AddTxToAccount(tx *Transaction) int {
+func (tree *AccountTree) AddBalanceToAccount(pubX, pubY []byte, amount *big.Int, isIncrease bool) int {
 	for i, currAcc := range tree.Arr {
 		if currAcc == nil {
 			continue
 		}
-		if utils.ByteEqual(currAcc.PubX, tx.ToX) && utils.ByteEqual(currAcc.PubY, tx.ToY) {
+		if utils.ByteEqual(currAcc.PubX, pubX) && utils.ByteEqual(currAcc.PubY, pubY) {
 			// find the account => update
-			fmt.Println("AddTxToAccount: update account")
-			fmt.Println("AddTxToAccount: old balance = ", currAcc.Balance.String())
-			fmt.Println("AddTxToAccount: tx amount = ", tx.Amount.String())
-			tree.Arr[i].Balance.Add(tree.Arr[i].Balance, tx.Amount)
-			fmt.Println("AddTxToAccount: new balance 1 = ", currAcc.Balance.String())
-			fmt.Println("AddTxToAccount: new balance 2 = ", tree.Arr[i].Balance.String())
+			fmt.Println("AddTxToAccount: found account, old balance = ", tree.Arr[i].Balance.String())
+			fmt.Println("AddTxToAccount: tx amount = ", amount.String())
+			if isIncrease {
+				tree.Arr[i].Balance.Add(tree.Arr[i].Balance, amount)
+			} else {
+				tree.Arr[i].Balance.Sub(tree.Arr[i].Balance, amount)
+			}
+			fmt.Println("AddTxToAccount: new balance = ", tree.Arr[i].Balance.String())
 			return i
 		}
 	}

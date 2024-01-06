@@ -17,6 +17,13 @@ service LayerTwoService {
       get: "/debug/deposit-existence"
     };
   }
+
+  // DebugTransferLayer2
+  rpc DebugTransferLayer2(DebugTransferLayer2Request) returns (DebugTransferLayer2Response) {
+    option (google.api.http) = {
+      get: "/debug/transfer"
+    };
+  }
 }
 
 message GetAccountsStatusRequest {
@@ -37,5 +44,13 @@ message DebugDepositExistenceRequest {
 }
 
 message DebugDepositExistenceResponse {
+  string res = 1;
+}
+
+message DebugTransferLayer2Request {
+  string id = 1;
+}
+
+message DebugTransferLayer2Response {
   string res = 1;
 }

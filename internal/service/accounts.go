@@ -62,3 +62,34 @@ func (service *Service) DebugDepositExistence(ctx context.Context, req *api.Debu
 		Res: "Success",
 	}, nil
 }
+
+func (service *Service) DebugTransferLayer2(ctx context.Context, req *api.DebugTransferLayer2Request) (*api.DebugTransferLayer2Response, error) {
+	fmt.Println("Service: DebugTransferLayer2")
+	addressesFile := helpers.LoadJsonAccounts()
+	client := service.client
+
+	auth2, _ := helpers.LoadAuth(addressesFile, client, 3)
+
+	ten64bits := int64(10)
+	amount := big.NewInt(ten64bits)
+
+	user1 := service.accountTree.Arr[0]
+	user2 := service.accountTree.Arr[1]
+	//  prepare data
+	fromX := utils.ConvertToBytes32(user1.PubX)
+	fromY := utils.ConvertToBytes32(user1.PubY)
+	toX := utils.ConvertToBytes32(user2.PubX)
+	toY := utils.ConvertToBytes32(user2.PubY)
+	r8x := utils.ConvertToBytes32([]byte{0})
+	r8y := utils.ConvertToBytes32([]byte{0})
+	s := utils.ConvertToBytes32([]byte{0})
+	_, err := service.middlewareInstance.TransferLayer2(auth2, fromX, fromY, toX, toY, amount, r8x, r8y, s)
+	if err != nil {
+		fmt.Println("error call deposit middleware contract")
+		log.Fatal(err)
+		return nil, err
+	}
+	return &api.DebugTransferLayer2Response{
+		Res: "Success",
+	}, nil
+}

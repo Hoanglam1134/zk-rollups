@@ -149,6 +149,8 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 		if len(DepositRegisterTxs) == utils.RollupSize {
 			fmt.Println("ROLLING UP REGISTER...")
 			RollupRegister(accountTree, DepositRegisterTxs)
+			// reset
+			DepositRegisterTxs = []*models.Transaction{}
 		}
 	case utils.TopicDepositExistence:
 		fmt.Println("Handling event eDepositExistence")
@@ -169,8 +171,41 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 		})
 		if len(DepositExistenceTxs) == utils.RollupSize {
 			fmt.Println("ROLLING UP EXISTENCE...")
-			RollupExistence(accountTree, DepositRegisterTxs)
+			RollupExistence(accountTree, DepositExistenceTxs)
+			// reset
+			DepositExistenceTxs = []*models.Transaction{}
 		}
+	case utils.TopicTransfer:
+		fmt.Println("Handling event eTransfer")
+		events, err := middlewareContractAbi.Unpack(utils.NameTransfer, vLog.Data)
+		if err != nil {
+			fmt.Println("error Unpack middleware event eTransfer")
+			log.Fatal(err)
+		}
+		transferTx := &models.Transaction{
+			FromX:  utils.ConvertToBytes(events[0].([32]byte)),
+			FromY:  utils.ConvertToBytes(events[1].([32]byte)),
+			ToX:    utils.ConvertToBytes(events[2].([32]byte)),
+			ToY:    utils.ConvertToBytes(events[3].([32]byte)),
+			Amount: events[4].(*big.Int),
+			R8X:    utils.ConvertToBytes(events[5].([32]byte)),
+			R8Y:    utils.ConvertToBytes(events[6].([32]byte)),
+			S:      utils.ConvertToBytes(events[7].([32]byte)),
+		}
+		fmt.Println("TRANSFER ...")
+		// add balance to receiver
+		accountIdx := accountTree.AddBalanceToAccount(transferTx.ToX, transferTx.ToY, transferTx.Amount, true)
+		if accountIdx == -1 {
+			fmt.Println("error: account receiver not found")
+			return
+		}
+		// sub balance from sender
+		accountIdx = accountTree.AddBalanceToAccount(transferTx.FromX, transferTx.FromY, transferTx.Amount, false)
+		if accountIdx == -1 {
+			fmt.Println("error: account sender not found")
+			return
+		}
+		// TODO: need re-hash after
 	default:
 		fmt.Println("error: not found event")
 	}
@@ -227,7 +262,7 @@ func RollupExistence(accountTree *models.AccountTree, txs []*models.Transaction)
 
 	// Update new balance to accounts
 	for _, tx := range txs {
-		accountIdx := accountTree.AddTxToAccount(tx)
+		accountIdx := accountTree.AddBalanceToAccount(tx.ToX, tx.ToY, tx.Amount, true)
 		if accountIdx == -1 {
 			fmt.Println("error: account not found")
 			return nil
