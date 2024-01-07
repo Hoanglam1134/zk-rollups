@@ -5,15 +5,16 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"log"
+	"math/big"
+	"os"
+	"zk-rollups/internal/models"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	"golang.org/x/exp/maps"
-	"log"
-	"math/big"
-	"os"
-	"zk-rollups/internal/models"
 )
 
 type AddressesFile struct {
@@ -93,11 +94,12 @@ func DebugCreateTx(amount int) models.Transaction {
 	edDsaPubkeyTo := privKey2.Public()
 
 	tx := models.Transaction{
-		FromX:  edDsaPubkeyFrom.Point().X.Bytes(),
-		FromY:  edDsaPubkeyFrom.Point().Y.Bytes(),
-		ToX:    edDsaPubkeyTo.Point().X.Bytes(),
-		ToY:    edDsaPubkeyTo.Point().Y.Bytes(),
+		FromX:  edDsaPubkeyFrom.Point().X,
+		FromY:  edDsaPubkeyFrom.Point().Y,
+		ToX:    edDsaPubkeyTo.Point().X,
+		ToY:    edDsaPubkeyTo.Point().Y,
 		Amount: big.NewInt(int64(amount)),
+		Nonce: new(big.Int), // big.NewInt(0)
 	}
 
 	// sign Tx, also set new values to R8X, R8Y, S

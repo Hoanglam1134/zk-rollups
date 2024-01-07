@@ -1,55 +1,64 @@
 package models
 
 import (
-	"github.com/iden3/go-iden3-crypto/babyjub"
+	"log"
 	"math/big"
-	"zk-rollups/utils"
+
+	"github.com/iden3/go-iden3-crypto/babyjub"
+	"github.com/iden3/go-iden3-crypto/mimc7"
 )
 
 type Transaction struct {
-	FromX  []byte
-	FromY  []byte
-	ToX    []byte
-	ToY    []byte
+	FromX  *big.Int
+	FromY  *big.Int
+	ToX    *big.Int
+	ToY    *big.Int
 	Amount *big.Int
-	Nonce  []byte
-	R8X    []byte
-	R8Y    []byte
-	S      []byte
+	Nonce  *big.Int
+	R8X    *big.Int
+	R8Y    *big.Int
+	S      *big.Int
 }
 
 func (tx *Transaction) HashMimc() *big.Int {
-	return utils.MiMCHash(
-		tx.FromX,
-		tx.FromY,
-		tx.ToX,
-		tx.ToY,
-		tx.Amount.Bytes(),
-		tx.Nonce,
+	ret, err := mimc7.Hash(
+		[]*big.Int{tx.FromX,
+			tx.FromY,
+			tx.ToX,
+			tx.ToY,
+			tx.Amount,
+			tx.Nonce}, big.NewInt(0),
 	)
+
+	if err != nil {
+		log.Fatal("HashMimc() of Transaction type is error")
+		return big.NewInt(0)
+	}
+
+	return ret
 }
 
 func (tx *Transaction) SignTx(privateKey babyjub.PrivateKey) *babyjub.Signature {
 	signature := privateKey.SignMimc7(tx.HashMimc())
-	tx.R8X = signature.R8.X.Bytes()
-	tx.R8Y = signature.R8.Y.Bytes()
-	tx.S = signature.S.Bytes()
+	tx.R8X = signature.R8.X
+	tx.R8Y = signature.R8.Y
+	tx.S = signature.S
 	return signature
 }
 
 func (tx *Transaction) VerifyTx() bool {
 	// verify signature
 	edDsaPubkeyFrom := babyjub.PublicKey{
-		X: utils.ByteToBigInt(tx.FromX),
-		Y: utils.ByteToBigInt(tx.FromY),
+		X: tx.FromX,
+		Y: tx.FromY,
 	}
 
 	signature := babyjub.Signature{
 		R8: &babyjub.Point{
-			X: utils.ByteToBigInt(tx.R8X),
-			Y: utils.ByteToBigInt(tx.R8Y),
+			X: tx.R8X,
+			Y: tx.R8Y,
 		},
-		S: utils.ByteToBigInt(tx.S),
+		S: tx.S,
 	}
 
 	// TODO: improve this to reduce using hashMimc()

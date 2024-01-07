@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
-	"golang.org/x/exp/maps"
 	"math/big"
 	"os"
+
+	bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
+	"golang.org/x/exp/maps"
 )
 
 type AddressesFile struct {
@@ -41,7 +42,7 @@ func mimcHash(data []byte) string {
 	return hashInt.String()
 }
 
-func main() {
-	hashString := mimcHash([]byte("hello"))
-	fmt.Println(hashString)
-}
+// func main() {
+// 	hashString := mimcHash([]byte("hello"))
+// 	fmt.Println(hashString)
+// }
