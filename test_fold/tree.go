@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/iden3/go-iden3-crypto/babyjub"
 	"math/big"
 
 	"github.com/iden3/go-iden3-crypto/mimc7"
@@ -95,9 +94,9 @@ func (a *Transaction) GetHash() []byte {
 	return hash[:]
 }
 
-func (tx *Transaction) SignTx() *babyjub.Signature {
+// func (tx *Transaction) SignTx() *babyjub.Signature {
 
-}
+// }
 
 // ------------------------------------------------------------------------
 
@@ -161,11 +160,11 @@ func NewTx(fromX, fromY, toX, toY, nonce []byte, amount int64, r8x, r8y, s []byt
 	}
 }
 
-func main() {
-	tree := NewAccountTree()
+// func main() {
+// 	tree := NewAccountTree()
 
-	for i := 0; i < (1<<(HEIGHT) - 1); i++ {
-		fmt.Printf("Hex: %x\n", tree.Tree[i].hash)
-	}
+// 	for i := 0; i < (1<<(HEIGHT) - 1); i++ {
+// 		fmt.Printf("Hex: %x\n", tree.Tree[i].hash)
+// 	}
 
-}
+// }

@@ -3,11 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"log"
 	"math/big"
 	"strings"
@@ -16,6 +11,12 @@ import (
 	"zk-rollups/helpers"
 	"zk-rollups/internal/models"
 	"zk-rollups/utils"
+
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 var (
@@ -33,9 +34,14 @@ func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middle
 
 	// load Auth to deploy contracts
 	auth0, err := helpers.LoadAuth(addressesFile, client, 0)
+	if err != nil {
+		fmt.Println("error when load auth 0 to deploy contracts")
+		log.Fatal(err)
+	}
+
 	auth1, err := helpers.LoadAuth(addressesFile, client, 1)
 	if err != nil {
-		fmt.Println("error when load auth to deploy contracts")
+		fmt.Println("error when load auth 1 to deploy contracts")
 		log.Fatal(err)
 	}
 
@@ -52,7 +58,7 @@ func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middle
 	_ = mimcAddress
 
 	// Middleware contract
-	initialAccountRoot := [32]byte{}
+	initialAccountRoot := new(big.Int)
 	middlewareAddress, middTx, middlewareInstance, err := middleware_contract.DeployMiddlewareContract(auth1, client, mimcAddress, initialAccountRoot)
 	if err != nil {
 		fmt.Println("error deploy Middleware contracts")
@@ -91,13 +97,13 @@ func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middle
 	for i := 1; i <= 4; i++ {
 		depositTx := helpers.DebugCreateTx(15)
 		//  prepare data
-		fromX := utils.ConvertToBytes32(depositTx.FromX)
-		fromY := utils.ConvertToBytes32(depositTx.FromY)
-		toX := utils.ConvertToBytes32(depositTx.ToX)
-		toY := utils.ConvertToBytes32(depositTx.ToY)
-		r8x := utils.ConvertToBytes32(depositTx.R8X)
-		r8y := utils.ConvertToBytes32(depositTx.R8Y)
-		s := utils.ConvertToBytes32(depositTx.S)
+		fromX := depositTx.FromX
+		fromY := depositTx.FromY
+		toX := depositTx.ToX
+		toY := depositTx.ToY
+		r8x := depositTx.R8X
+		r8y := depositTx.R8Y
+		s := depositTx.S
 		tx, err := middlewareInstance.Deposit(auth2, fromX, fromY, toX, toY, depositTx.Amount, r8x, r8y, s)
 		if err != nil {
 			fmt.Println("error call deposit middleware contract")
@@ -136,16 +142,19 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 			fmt.Println("error Unpack middleware event eDepositRegister")
 			log.Fatal(err)
 		}
+
 		DepositRegisterTxs = append(DepositRegisterTxs, &models.Transaction{
-			FromX:  utils.ConvertToBytes(events[0].([32]byte)),
-			FromY:  utils.ConvertToBytes(events[1].([32]byte)),
-			ToX:    utils.ConvertToBytes(events[2].([32]byte)),
-			ToY:    utils.ConvertToBytes(events[3].([32]byte)),
+			FromX:  events[0].(*big.Int),
+			FromY:  events[1].(*big.Int),
+			ToX:    events[2].(*big.Int),
+			ToY:    events[3].(*big.Int),
 			Amount: events[4].(*big.Int),
-			R8X:    utils.ConvertToBytes(events[5].([32]byte)),
-			R8Y:    utils.ConvertToBytes(events[6].([32]byte)),
-			S:      utils.ConvertToBytes(events[7].([32]byte)),
+			Nonce:  new(big.Int),
+			R8X:    events[5].(*big.Int),
+			R8Y:    events[6].(*big.Int),
+			S:      events[7].(*big.Int),
 		})
+
 		if len(DepositRegisterTxs) == utils.RollupSize {
 			fmt.Println("ROLLING UP REGISTER...")
 			RollupRegister(accountTree, DepositRegisterTxs)
@@ -215,45 +224,47 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 // -
 func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) *models.DepositRegisterProof {
 	fmt.Println("RollupRegister")
-	oldAccountRoot := accountTree.GetRoot()
-	accounts := models.ToListAccounts(txs)
-	newAccountTree := models.NewTreeFromAccounts(accounts)
+	// oldAccountRoot := accountTree.GetRoot()
+	// accounts := models.ToListAccounts(txs)
+	// newAccountTree := models.NewTreeFromAccounts(accounts)
 
 	// Verify signature: luc dung luc sai :(((
-	//for _, tx := range txs {
-	//	valid := tx.VerifyTx()
-	//	if !valid {
-	//		fmt.Println("error: tx invalid, wrong signature")
-	//		return nil
-	//	}
-	//}
-
-	// Find empty tree node
-	emptyNodeIndex := accountTree.FindEmptyNodeIndex()
-	if emptyNodeIndex == -1 {
-		fmt.Println("error: tree is full")
-		return nil
+	for _, tx := range txs {
+		valid := tx.VerifyTx()
+		if !valid {
+			fmt.Println("error: tx invalid, wrong signature")
+			return nil
+		}
 	}
-	emptyNodeProof, emptyNodeProofPos := accountTree.GetProof(emptyNodeIndex)
 
-	// Update new account tree to main tree
-	accountTree.AddSubTree(emptyNodeIndex, newAccountTree)
-	accountTree.ReHashing(emptyNodeIndex)
-	newAccountRoot := accountTree.GetRoot()
+	fmt.Println("pass!")
 
-	// print file json
-	finalProof := &models.DepositRegisterProof{
-		OldAccountRoot:    oldAccountRoot,
-		NewAccountRoot:    newAccountRoot,
-		ProofEmptyTree:    emptyNodeProof,
-		ProofPosEmptyTree: emptyNodeProofPos,
-		DepositRegisterTx: nil,
-	}
-	errJson := utils.PrintJson(finalProof)
-	if errJson != nil {
-		fmt.Println("error print json")
-		log.Fatal(errJson)
-	}
+	// // Find empty tree node
+	// emptyNodeIndex := accountTree.FindEmptyNodeIndex()
+	// if emptyNodeIndex == -1 {
+	// 	fmt.Println("error: tree is full")
+	// 	return nil
+	// }
+	// emptyNodeProof, emptyNodeProofPos := accountTree.GetProof(emptyNodeIndex)
+
+	// // Update new account tree to main tree
+	// accountTree.AddSubTree(emptyNodeIndex, newAccountTree)
+	// accountTree.ReHashing(emptyNodeIndex)
+	// newAccountRoot := accountTree.GetRoot()
+
+	// // print file json
+	// finalProof := &models.DepositRegisterProof{
+	// 	OldAccountRoot:    oldAccountRoot,
+	// 	NewAccountRoot:    newAccountRoot,
+	// 	ProofEmptyTree:    emptyNodeProof,
+	// 	ProofPosEmptyTree: emptyNodeProofPos,
+	// 	DepositRegisterTx: nil,
+	// }
+	// errJson := utils.PrintJson(finalProof)
+	// if errJson != nil {
+	// 	fmt.Println("error print json")
+	// 	log.Fatal(errJson)
+	// }
 	return nil
 }
 

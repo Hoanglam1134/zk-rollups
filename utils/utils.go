@@ -3,9 +3,10 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/iden3/go-iden3-crypto/mimc7"
 	"math/big"
 	"os"
+
+	"github.com/iden3/go-iden3-crypto/mimc7"
 )
 
 // ConvertToBytes32 convert []byte to [32]byte
@@ -29,6 +30,17 @@ func MiMCHash(inputs ...[]byte) *big.Int {
 		res = append(res, x...)
 	}
 	return mimc7.HashBytes(res)
+}
+
+// NguyenHiu's code
+func MultiMiMC7BigInt(input ...*big.Int) *big.Int {
+	// key is zero
+	ret, err := mimc7.Hash(input, big.NewInt(0))
+	if err != nil {
+		fmt.Printf("multi mimc7 hash is error: %v\n", err)
+		return big.NewInt(0)
+	}
+	return ret
 }
 
 func ByteToBigInt(src []byte) *big.Int {
