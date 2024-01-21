@@ -224,10 +224,14 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 // -
 func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) *models.DepositRegisterProof {
 	fmt.Println("RollupRegister")
-	// oldAccountRoot := accountTree.GetRoot()
-	// accounts := models.ToListAccounts(txs)
-	// newAccountTree := models.NewTreeFromAccounts(accounts)
+	oldAccountRoot := accountTree.GetRoot()
+	fmt.Println("Done creating Old Account Root: ", oldAccountRoot)
 
+	accounts := models.ToListAccounts(txs)
+	fmt.Println("Done creating Accounts: ", accounts)
+
+	newAccountTree := models.NewTreeFromAccounts(accounts)
+	fmt.Println("Done creating new tree")
 	// Verify signature: luc dung luc sai :(((
 	for _, tx := range txs {
 		valid := tx.VerifyTx()
@@ -240,31 +244,31 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 	fmt.Println("pass!")
 
 	// // Find empty tree node
-	// emptyNodeIndex := accountTree.FindEmptyNodeIndex()
-	// if emptyNodeIndex == -1 {
-	// 	fmt.Println("error: tree is full")
-	// 	return nil
-	// }
-	// emptyNodeProof, emptyNodeProofPos := accountTree.GetProof(emptyNodeIndex)
+	emptyNodeIndex := accountTree.FindEmptyNodeIndex()
+	if emptyNodeIndex == -1 {
+		fmt.Println("error: tree is full")
+		return nil
+	}
+	emptyNodeProof, emptyNodeProofPos := accountTree.GetProof(emptyNodeIndex)
 
-	// // Update new account tree to main tree
-	// accountTree.AddSubTree(emptyNodeIndex, newAccountTree)
-	// accountTree.ReHashing(emptyNodeIndex)
-	// newAccountRoot := accountTree.GetRoot()
+	// Update new account tree to main tree
+	accountTree.AddSubTree(emptyNodeIndex, newAccountTree)
+	accountTree.ReHashing(emptyNodeIndex)
+	newAccountRoot := accountTree.GetRoot()
 
-	// // print file json
-	// finalProof := &models.DepositRegisterProof{
-	// 	OldAccountRoot:    oldAccountRoot,
-	// 	NewAccountRoot:    newAccountRoot,
-	// 	ProofEmptyTree:    emptyNodeProof,
-	// 	ProofPosEmptyTree: emptyNodeProofPos,
-	// 	DepositRegisterTx: nil,
-	// }
-	// errJson := utils.PrintJson(finalProof)
-	// if errJson != nil {
-	// 	fmt.Println("error print json")
-	// 	log.Fatal(errJson)
-	// }
+	// print file json
+	finalProof := &models.DepositRegisterProof{
+		OldAccountRoot:    oldAccountRoot,
+		NewAccountRoot:    newAccountRoot,
+		ProofEmptyTree:    emptyNodeProof,
+		ProofPosEmptyTree: emptyNodeProofPos,
+		DepositRegisterTx: nil,
+	}
+	errJson := utils.PrintJson(finalProof)
+	if errJson != nil {
+		fmt.Println("error print json")
+		log.Fatal(errJson)
+	}
 	return nil
 }
 

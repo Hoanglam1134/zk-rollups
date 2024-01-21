@@ -19,9 +19,15 @@ type Account struct {
 // Default tree height is 4, which can store 2^(4-1) = 8 accounts
 // Tree hash value is 2^(4) - 1 = 15, include 8 leaf nodes and 7 internal nodes
 type AccountTree struct {
-	HashValueZeros [(1 << (utils.TreeHeight)) - 1]*big.Int
-	Node           [(1 << (utils.TreeHeight)) - 1]*big.Int
-	Arr            [1 << (utils.TreeHeight - 1)]*Account
+	HashValueZeros [(1 << (utils.BigTreeHeight)) - 1]*big.Int
+	Node           [(1 << (utils.BigTreeHeight)) - 1]*big.Int
+	Arr            [1 << (utils.BigTreeHeight - 1)]*Account
+}
+
+type BigAccountTree struct {
+	HashValueZeros [(1 << (utils.BigTreeHeight)) - 1]*big.Int
+	Node           [(1 << (utils.BigTreeHeight)) - 1]*big.Int
+	Arr            [1 << (utils.BigTreeHeight - 1)]*Account
 }
 
 type TxTree struct {
@@ -70,10 +76,21 @@ func NewAccountTree() *AccountTree {
 
 func NewTreeFromAccounts(accounts []*Account) *AccountTree {
 	tree := new(AccountTree)
+
 	accountSize := len(accounts)
+
+	// ----
+
+	// 		0
+	// 	1	    2
+	//   3   4      5      6
+	// 7 8  9 10  11 12  13 14
+
+	// ---
+	// --
 	// Create the last layer of the tree
 	for i := 0; i < accountSize; i++ {
-		indexNumber := i + accountSize - 1
+		indexNumber := i + (1 << (utils.TreeHeight - 1)) - 1
 		tree.Arr[i] = accounts[i]
 		tree.Node[indexNumber] = tree.Arr[i].GetHash()
 	}
