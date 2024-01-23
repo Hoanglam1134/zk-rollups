@@ -1,9 +1,11 @@
 package models
 
+import "math/big"
+
 type DepositRegisterProof struct {
-	OldAccountRoot    []byte `json:"old_account_root"`
-	NewAccountRoot    []byte
-	ProofEmptyTree    [][]byte
+	OldAccountRoot    *big.Int
+	NewAccountRoot    *big.Int
+	ProofEmptyTree    []*big.Int
 	ProofPosEmptyTree []int
 	DepositRegisterTx *Transaction
 }

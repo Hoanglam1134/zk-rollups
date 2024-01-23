@@ -2,15 +2,16 @@ package models
 
 import (
 	"fmt"
-	"github.com/iden3/go-iden3-crypto/babyjub"
 	"math/big"
 	"zk-rollups/utils"
+
+	"github.com/iden3/go-iden3-crypto/babyjub"
 )
 
 type Account struct {
 	Index      int
-	PubX, PubY []byte
-	Nonce      []byte
+	PubX, PubY *big.Int
+	Nonce      *big.Int
 	Balance    *big.Int
 }
 
@@ -18,9 +19,15 @@ type Account struct {
 // Default tree height is 4, which can store 2^(4-1) = 8 accounts
 // Tree hash value is 2^(4) - 1 = 15, include 8 leaf nodes and 7 internal nodes
 type AccountTree struct {
-	HashValueZeros [(1 << (utils.TreeHeight)) - 1][]byte
-	Node           [(1 << (utils.TreeHeight)) - 1][]byte
-	Arr            [1 << (utils.TreeHeight - 1)]*Account
+	HashValueZeros [(1 << (utils.BigTreeHeight)) - 1]*big.Int
+	Node           [(1 << (utils.BigTreeHeight)) - 1]*big.Int
+	Arr            [1 << (utils.BigTreeHeight - 1)]*Account
+}
+
+type BigAccountTree struct {
+	HashValueZeros [(1 << (utils.BigTreeHeight)) - 1]*big.Int
+	Node           [(1 << (utils.BigTreeHeight)) - 1]*big.Int
+	Arr            [1 << (utils.BigTreeHeight - 1)]*Account
 }
 
 type TxTree struct {
@@ -30,20 +37,14 @@ type TxTree struct {
 
 //===================Methods===================
 
-func (a *Account) GetHash() []byte {
-	var hash []byte
-	hash = utils.MiMCHash(
-		a.PubX, a.PubY,
-		a.Nonce,
-		a.Balance.Bytes(),
-	).Bytes()
-	return hash[:]
+func (a *Account) GetHash() *big.Int {
+	return utils.MultiMiMC7BigInt(a.PubX, a.PubY, a.Nonce, a.Balance)
 }
 
 func (a *Account) GetPubkeyShow() string {
 	pk := babyjub.PublicKey{
-		X: utils.ByteToBigInt(a.PubX),
-		Y: utils.ByteToBigInt(a.PubY),
+		X: a.PubX,
+		Y: a.PubY,
 	}
 	return pk.String()
 }
@@ -53,23 +54,21 @@ func (a *Account) GetPubkeyShow() string {
 func NewAccountTree() *AccountTree {
 	tree := new(AccountTree)
 	// Create the last layer of the tree
+	bigInZero := big.NewInt(0)
 	for i := 0; i < utils.AccountSize; i++ {
 		indexNumber := i + utils.AccountSize - 1
 		tree.Arr[i] = &Account{
 			Index:   0,
-			PubX:    []byte{0},
-			PubY:    []byte{0},
-			Nonce:   []byte{0},
-			Balance: big.NewInt(0),
+			PubX:    bigInZero,
+			PubY:    bigInZero,
+			Nonce:   bigInZero,
+			Balance: bigInZero,
 		}
 		tree.Node[indexNumber] = tree.Arr[i].GetHash()
 	}
 	// Update the hash of the node from upper layer to the root
 	for index := (1 << (utils.TreeHeight - 1)) - 2; index >= 0; index-- {
-		tree.Node[index] = utils.MiMCHash(
-			tree.Node[index*2+1],
-			tree.Node[index*2+2],
-		).Bytes()
+		tree.Node[index] = utils.MultiMiMC7BigInt(tree.Node[index*2+1], tree.Node[index*2+2])
 		tree.HashValueZeros[index] = tree.Node[index]
 	}
 	return tree
@@ -77,26 +76,37 @@ func NewAccountTree() *AccountTree {
 
 func NewTreeFromAccounts(accounts []*Account) *AccountTree {
 	tree := new(AccountTree)
+
 	accountSize := len(accounts)
+
+	// ----
+
+	// 		0
+	// 	1	    2
+	//   3   4      5      6
+	// 7 8  9 10  11 12  13 14
+
+	// ---
+	// --
 	// Create the last layer of the tree
 	for i := 0; i < accountSize; i++ {
-		indexNumber := i + accountSize - 1
+		indexNumber := i + (1 << (utils.TreeHeight - 1)) - 1
 		tree.Arr[i] = accounts[i]
 		tree.Node[indexNumber] = tree.Arr[i].GetHash()
 	}
 	// Update the hash of the node from upper layer to the root
 	for index := (1 << (utils.TreeHeight - 1)) - 2; index >= 0; index-- {
-		tree.Node[index] = utils.MiMCHash(
+		tree.Node[index] = utils.MultiMiMC7BigInt(
 			tree.Node[index*2+1],
 			tree.Node[index*2+2],
-		).Bytes()
+		)
 	}
 	return tree
 }
 
 func (tree *AccountTree) FindEmptyNodeIndex() int {
 	for i := 1; i < len(tree.Node); i++ {
-		if utils.ByteEqual(tree.Node[i], tree.HashValueZeros[i]) {
+		if tree.Node[i].Cmp(tree.HashValueZeros[i]) == 0 {
 			return i
 		}
 	}
@@ -104,8 +114,8 @@ func (tree *AccountTree) FindEmptyNodeIndex() int {
 }
 
 // GetProof returns the proof of the Node at index (0-15)
-func (tree *AccountTree) GetProof(idx int) ([][]byte, []int) {
-	proof := make([][]byte, 0)
+func (tree *AccountTree) GetProof(idx int) ([]*big.Int, []int) {
+	proof := make([]*big.Int, 0)
 	proofPos := make([]int, 0)
 	for idx > 0 {
 		if idx%2 == 0 {
@@ -126,14 +136,14 @@ func (tree *AccountTree) UpdateTree(index int, account *Account) {
 	tree.Node[index+(1<<utils.TreeHeight)-1] = account.GetHash()
 	// Update the hash of the node from upper layer to the root
 	for index := (1 << (utils.TreeHeight - 1)) - 2; index >= 0; index-- {
-		tree.Node[index] = utils.MiMCHash(
+		tree.Node[index] = utils.MultiMiMC7BigInt(
 			tree.Node[index*2+1],
 			tree.Node[index*2+2],
-		).Bytes()
+		)
 	}
 }
 
-func (tree *AccountTree) GetRoot() []byte {
+func (tree *AccountTree) GetRoot() *big.Int {
 	return tree.Node[0]
 }
 
@@ -182,15 +192,15 @@ func (tree *AccountTree) PrintTree() {
 func (tree *AccountTree) ReHashing(index int) {
 	for ; index > 0; index-- {
 		if index%2 == 0 {
-			tree.Node[(index-1)/2] = utils.MiMCHash(
+			tree.Node[(index-1)/2] = utils.MultiMiMC7BigInt(
 				tree.Node[index-1],
 				tree.Node[index],
-			).Bytes()
+			)
 		} else {
-			tree.Node[(index-1)/2] = utils.MiMCHash(
+			tree.Node[(index-1)/2] = utils.MultiMiMC7BigInt(
 				tree.Node[index],
 				tree.Node[index+1],
-			).Bytes()
+			)
 		}
 		index = (index - 1) / 2
 	}
@@ -203,7 +213,7 @@ func (tree *AccountTree) AddBalanceToAccount(pubX, pubY []byte, amount *big.Int,
 		if currAcc == nil {
 			continue
 		}
-		if utils.ByteEqual(currAcc.PubX, pubX) && utils.ByteEqual(currAcc.PubY, pubY) {
+		if currAcc.PubX.Cmp(tx.ToX) == 0 && currAcc.PubY.Cmp(tx.ToY) == 0 {
 			// find the account => update
 			fmt.Println("AddTxToAccount: found account, old balance = ", tree.Arr[i].Balance.String())
 			fmt.Println("AddTxToAccount: tx amount = ", amount.String())
@@ -224,7 +234,7 @@ func (tree *AccountTree) UpdateAccount(acc *Account) int {
 		if currAcc == nil {
 			continue
 		}
-		if utils.ByteEqual(currAcc.PubX, acc.PubX) && utils.ByteEqual(currAcc.PubY, acc.PubY) {
+		if currAcc.PubX.Cmp(acc.PubX) == 0 && currAcc.PubY.Cmp(acc.PubY) == 0 {
 			// find the account => update
 			tree.Arr[i] = acc
 			return i
