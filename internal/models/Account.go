@@ -208,12 +208,12 @@ func (tree *AccountTree) ReHashing(index int) {
 
 // AddBalanceToAccount add tx to account
 // it is used for update tx to an existing account
-func (tree *AccountTree) AddBalanceToAccount(pubX, pubY []byte, amount *big.Int, isIncrease bool) int {
+func (tree *AccountTree) AddBalanceToAccount(pubX, pubY *big.Int, amount *big.Int, isIncrease bool) int {
 	for i, currAcc := range tree.Arr {
 		if currAcc == nil {
 			continue
 		}
-		if currAcc.PubX.Cmp(tx.ToX) == 0 && currAcc.PubY.Cmp(tx.ToY) == 0 {
+		if currAcc.PubX.Cmp(pubX) == 0 && currAcc.PubY.Cmp(pubY) == 0 {
 			// find the account => update
 			fmt.Println("AddTxToAccount: found account, old balance = ", tree.Arr[i].Balance.String())
 			fmt.Println("AddTxToAccount: tx amount = ", amount.String())

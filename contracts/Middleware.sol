@@ -51,15 +51,36 @@ contract Middleware {
         uint256 s
     );
     event eDepositExistence(
-        bytes32 fromX,
-        bytes32 fromY,
-        bytes32 toX,
-        bytes32 toY,
-        uint amount,
-        bytes32 r8x,
-        bytes32 r8y,
-        bytes32 s
+        uint256 fromX,
+        uint256 fromY,
+        uint256 toX,
+        uint256 toY,
+        uint256 amount,
+        uint256 r8x,
+        uint256 r8y,
+        uint256 s
     );
+    event eTransfer(
+        uint256 fromX,
+        uint256 fromY,
+        uint256 toX,
+        uint256 toY,
+        uint256 amount,
+        uint256 r8x,
+        uint256 r8y,
+        uint256 s
+    );
+    event eWithdraw(
+        uint256 fromX,
+        uint256 fromY,
+        uint256 toX,
+        uint256 toY,
+        uint256 amount,
+        uint256 r8x,
+        uint256 r8y,
+        uint256 s
+    );
+
     event sDepositRegister(bool b);
 
     constructor(
@@ -73,10 +94,6 @@ contract Middleware {
         emit dGetString("Middleware is deployed");
     }
 
-    function debugCalled() public {
-        emit dGetString("Middleware is deployed, also, debug is called: ");
-    }
-
     function deposit(
         uint256 fromX,
         uint256 fromY,
@@ -87,7 +104,6 @@ contract Middleware {
         uint256 r8y,
         uint256 s
     ) public payable {
-        // emit dDebug(true);
         // require(uint(amount) * 1e18 == msg.value, "amount*1e18 != msg.value");
         address receiverAddress = address(
             bytes20((keccak256(abi.encodePacked(toX, toY))) << 96)
@@ -169,6 +185,33 @@ contract Middleware {
         uint256 s
     ) public {
         emit dGetString("depositExistence is triggered!");
+        emit eDepositExistence(fromX, fromY, toX, toY, amount, r8x, r8y, s);
+    }
+
+    function transfer(
+        uint256 fromX,
+        uint256 fromY,
+        uint256 toX,
+        uint256 toY,
+        uint256 amount,
+        uint256 r8x,
+        uint256 r8y,
+        uint256 s
+    ) public {
+        emit eTransfer(fromX, fromY, toX, toY, amount, r8x, r8y, s);
+    }
+
+    function withdraw(
+        uint256 fromX,
+        uint256 fromY,
+        uint256 toX,
+        uint256 toY,
+        uint256 amount,
+        uint256 r8x,
+        uint256 r8y,
+        uint256 s
+    ) public {
+        emit eWithdraw(fromX, fromY, toX, toY, amount, r8x, r8y, s);
     }
 
     function update() private {}
