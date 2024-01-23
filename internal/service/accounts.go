@@ -3,7 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
+	"math/big"
 	"zk-rollups/api"
+	"zk-rollups/helpers"
 )
 
 func (s *Service) GetAccountsStatus(ctx context.Context, req *api.GetAccountsStatusRequest) (*api.GetAccountsStatusResponse, error) {
@@ -67,18 +70,19 @@ func (service *Service) DebugTransferLayer2(ctx context.Context, req *api.DebugT
 
 	ten64bits := int64(10)
 	amount := big.NewInt(ten64bits)
+	zero := big.NewInt(0)
 
 	user1 := service.accountTree.Arr[0]
 	user2 := service.accountTree.Arr[1]
 	//  prepare data
-	fromX := utils.ConvertToBytes32(user1.PubX)
-	fromY := utils.ConvertToBytes32(user1.PubY)
-	toX := utils.ConvertToBytes32(user2.PubX)
-	toY := utils.ConvertToBytes32(user2.PubY)
-	r8x := utils.ConvertToBytes32([]byte{0})
-	r8y := utils.ConvertToBytes32([]byte{0})
-	s := utils.ConvertToBytes32([]byte{0})
-	_, err := service.middlewareInstance.TransferLayer2(auth2, fromX, fromY, toX, toY, amount, r8x, r8y, s)
+	fromX := user1.PubX
+	fromY := user1.PubY
+	toX := user2.PubX
+	toY := user2.PubY
+	r8x := zero //TODO: need to sign before call.
+	r8y := zero
+	s := zero
+	_, err := service.middlewareInstance.Transfer(auth2, fromX, fromY, toX, toY, amount, r8x, r8y, s)
 	if err != nil {
 		fmt.Println("error call deposit middleware contract")
 		log.Fatal(err)

@@ -124,17 +124,6 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 	fmt.Println("vlog.Topics[0].Hex(): ", vLog.Topics[0].Hex())
 
 	switch vLog.Topics[0].Hex() {
-	case utils.TopicDebugCalled:
-		events, err := middlewareContractAbi.Unpack(utils.NameDebugCalled, vLog.Data)
-		if err != nil {
-			fmt.Println("error Unpack middleware event dGetString")
-			log.Fatal(err)
-		}
-		fmt.Println("vlog.Data: ", string(vLog.Data))
-		for _, item := range events {
-			event := item.(string)
-			fmt.Println("event: ", event)
-		}
 	case utils.TopicDepositRegister:
 		fmt.Println("Handling event eDepositRegister")
 		events, err := middlewareContractAbi.Unpack(utils.NameDepositRegister, vLog.Data)
@@ -169,14 +158,15 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 			log.Fatal(err)
 		}
 		DepositExistenceTxs = append(DepositExistenceTxs, &models.Transaction{
-			FromX:  utils.ConvertToBytes(events[0].([32]byte)),
-			FromY:  utils.ConvertToBytes(events[1].([32]byte)),
-			ToX:    utils.ConvertToBytes(events[2].([32]byte)),
-			ToY:    utils.ConvertToBytes(events[3].([32]byte)),
+			FromX:  events[0].(*big.Int),
+			FromY:  events[1].(*big.Int),
+			ToX:    events[2].(*big.Int),
+			ToY:    events[3].(*big.Int),
 			Amount: events[4].(*big.Int),
-			R8X:    utils.ConvertToBytes(events[5].([32]byte)),
-			R8Y:    utils.ConvertToBytes(events[6].([32]byte)),
-			S:      utils.ConvertToBytes(events[7].([32]byte)),
+			Nonce:  new(big.Int),
+			R8X:    events[5].(*big.Int),
+			R8Y:    events[6].(*big.Int),
+			S:      events[7].(*big.Int),
 		})
 		if len(DepositExistenceTxs) == utils.RollupSize {
 			fmt.Println("ROLLING UP EXISTENCE...")
@@ -192,14 +182,15 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 			log.Fatal(err)
 		}
 		transferTx := &models.Transaction{
-			FromX:  utils.ConvertToBytes(events[0].([32]byte)),
-			FromY:  utils.ConvertToBytes(events[1].([32]byte)),
-			ToX:    utils.ConvertToBytes(events[2].([32]byte)),
-			ToY:    utils.ConvertToBytes(events[3].([32]byte)),
+			FromX:  events[0].(*big.Int),
+			FromY:  events[1].(*big.Int),
+			ToX:    events[2].(*big.Int),
+			ToY:    events[3].(*big.Int),
 			Amount: events[4].(*big.Int),
-			R8X:    utils.ConvertToBytes(events[5].([32]byte)),
-			R8Y:    utils.ConvertToBytes(events[6].([32]byte)),
-			S:      utils.ConvertToBytes(events[7].([32]byte)),
+			Nonce:  new(big.Int),
+			R8X:    events[5].(*big.Int),
+			R8Y:    events[6].(*big.Int),
+			S:      events[7].(*big.Int),
 		}
 		fmt.Println("TRANSFER ...")
 		// add balance to receiver
