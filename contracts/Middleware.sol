@@ -21,7 +21,7 @@ contract Middleware {
     // variables
     mapping(address => bool) existedPubkeys;
     uint256[] accountRoots;
-    address coordinator;
+    address public coordinator;
     IMiMC public mimc;
 
     uint256[] depositAccountRoots;
@@ -86,7 +86,7 @@ contract Middleware {
     constructor(
         address _mimcContractAddress,
         uint256 initializationAccountRoot
-    ) {
+    )   {
         mimc = IMiMC(_mimcContractAddress);
         noDepositRegisterTx = 0;
         coordinator = msg.sender;
@@ -129,7 +129,7 @@ contract Middleware {
     ) public {
         emit dGetString("depositRegister is triggered!");
         noDepositRegisterTx += 1;
-
+        
         // create a new account
         uint256[] memory accountProperties = new uint256[](4);
         accountProperties[0] = toX;

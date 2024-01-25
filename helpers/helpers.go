@@ -3,6 +3,7 @@ package helpers
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -78,9 +79,9 @@ func LoadAuth(addressesFile AddressesFile, client *ethclient.Client, index int) 
 		return nil, err
 	}
 	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(0)      // in wei
-	auth.GasLimit = uint64(3000000) // in units
-	auth.GasPrice = gasPrice        // in wei
+	auth.Value = big.NewInt(int64(0)) // in wei
+	auth.GasLimit = uint64(3000000)   // in units
+	auth.GasPrice = gasPrice          // in wei
 	if err != nil {
 		return nil, err
 	}
@@ -93,13 +94,17 @@ func DebugCreateTx(amount int) models.Transaction {
 	edDsaPubkeyFrom := privKey1.Public()
 	edDsaPubkeyTo := privKey2.Public()
 
+	upper_bound, _ := new(big.Int).SetString("69696969", 10)
+
+	nonce_number, _ := rand.Int(rand.Reader, upper_bound)
+	_ = nonce_number
 	tx := models.Transaction{
 		FromX:  edDsaPubkeyFrom.Point().X,
 		FromY:  edDsaPubkeyFrom.Point().Y,
 		ToX:    edDsaPubkeyTo.Point().X,
 		ToY:    edDsaPubkeyTo.Point().Y,
-		Amount: big.NewInt(int64(amount)),
-		Nonce: new(big.Int), // big.NewInt(0)
+		Amount: big.NewInt(int64(0)),
+		Nonce:  big.NewInt(0), //nonce_number,
 	}
 
 	// sign Tx, also set new values to R8X, R8Y, S
