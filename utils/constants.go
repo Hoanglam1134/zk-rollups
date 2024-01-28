@@ -18,12 +18,9 @@ const (
 
 const (
 	BigTreeHeight = 16
+	AccountSize   = (1 << (BigTreeHeight - 1))
 	TreeHeight    = 3
-	AccountSize   = 4
-)
-
-const (
-	RollupSize = 4
+	RollupSize    = (1 << (TreeHeight - 1))
 )
 
 var HashZeros = [][]byte{

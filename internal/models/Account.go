@@ -77,12 +77,9 @@ func NewAccountTree() *AccountTree {
 	}
 
 	// Update the hash of the node from upper layer to the root
-	for index := 0; index < utils.AccountSize; index++ {
-		if index == 0 {
-			tree.HashValueZeros[index] = tree.Arr[index].GetHash()
-		} else {
-			tree.HashValueZeros[index] = utils.MultiMiMC7BigInt(tree.HashValueZeros[index-1], tree.HashValueZeros[index-1])
-		}
+	tree.HashValueZeros[utils.BigTreeHeight-1] = tree.Arr[utils.AccountSize-1].GetHash()
+	for index := utils.BigTreeHeight - 2; index >= 0; index-- {
+		tree.HashValueZeros[index] = utils.MultiMiMC7BigInt(tree.HashValueZeros[index+1], tree.HashValueZeros[index+1])
 	}
 
 	for index := (utils.AccountSize) - 2; index >= 0; index-- {
@@ -117,9 +114,15 @@ func NewTreeFromAccounts(accounts []*Account) *AccountTree {
 	return tree
 }
 
+// TODO: update this into finding more suitable position to add near the leaf-level
 func (tree *AccountTree) FindEmptyNodeIndex() int {
+	// Since we already know the fixed height of the register tree, we can jump directly to that level.
+	index := 0
 	for i := 1; i < len(tree.Node); i++ {
-		if tree.Node[i].Cmp(tree.HashValueZeros[i]) == 0 {
+		if (i & (i + 1)) == 0 {
+			index++
+		}
+		if tree.Node[i].Cmp(tree.HashValueZeros[index]) == 0 {
 			return i
 		}
 	}
@@ -163,19 +166,23 @@ func (tree *AccountTree) GetRoot() *big.Int {
 func (tree *AccountTree) AddSubTree(index int, subTree *AccountTree) {
 	// update hash value
 	level := 0
+	// index passed in as value 1, we want to use that value to navigate and update the respective node
+	// make a complete binary tree index from 0
+	/**
+						0
+			1 						2
+		3			4			5			6
+	7		8	9		10	11		12	13		14
+	*/
 
 	for i := 0; i < len(subTree.Node); i++ {
 		// find index of the node in the tree
 		// level change when i = 1, 3, 7, 15 => all bit of i is 1
-		if i&(i+1) == 0 {
-			fmt.Printf("AddSubTree: level = %d, i: %d \n", level, i)
-			level += 1
-		}
 		fmt.Println("AddSubTree: index = ", (index<<level)+i)
 		tree.Node[(index<<level)+i] = subTree.Node[i]
-		if i == 6 {
-			// TODO: hard code here
-			break
+		if i > 0 && i&(i+1) == 0 {
+			fmt.Printf("AddSubTree: level = %d, i: %d \n", level, i)
+			level += 1
 		}
 	}
 

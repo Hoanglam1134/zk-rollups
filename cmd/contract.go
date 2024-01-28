@@ -230,7 +230,7 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 
 	newAccountTree := models.NewTreeFromAccounts(accounts)
 	fmt.Println("Done creating new tree")
-	// Verify signature: luc dung luc sai :(((
+
 	for _, tx := range txs {
 		valid := tx.VerifyTx()
 		if !valid {
