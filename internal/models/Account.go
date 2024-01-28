@@ -18,21 +18,25 @@ type Account struct {
 // AccountTree is a Merkle tree of accounts
 // Default tree height is 4, which can store 2^(4-1) = 8 accounts
 // Tree hash value is 2^(4) - 1 = 15, include 8 leaf nodes and 7 internal nodes
+
+// TODO: turn this into slice of big.Int
+
 type AccountTree struct {
-	HashValueZeros [(1 << (utils.BigTreeHeight)) - 1]*big.Int
-	Node           [(1 << (utils.BigTreeHeight)) - 1]*big.Int
-	Arr            [1 << (utils.BigTreeHeight - 1)]*Account
+	HashValueZeros []*big.Int // utils.BigTreeHeight
+	Node           []*big.Int // (1 << (utils.BigTreeHeight)) - 1
+	Arr            []*Account // 1 << (utils.BigTreeHeight - 1)
 }
 
 type BigAccountTree struct {
-	HashValueZeros [(1 << (utils.BigTreeHeight)) - 1]*big.Int
-	Node           [(1 << (utils.BigTreeHeight)) - 1]*big.Int
-	Arr            [1 << (utils.BigTreeHeight - 1)]*Account
+	HashValueZeros []*big.Int // utils.BigTreeHeight
+	Node           []*big.Int // (1 << (utils.BigTreeHeight)) - 1
+	Arr            []*Account // 1 << (utils.BigTreeHeight - 1)
 }
 
+// TODO: update this after the Account Tree
 type TxTree struct {
-	Arr  [1 << (utils.TreeHeight - 1)]*Transaction
-	Node [(1 << (utils.TreeHeight)) - 1][]byte
+	Node [][]byte       // (1 << (utils.TreeHeight)) - 1
+	Arr  []*Transaction // 1 << (utils.TreeHeight - 1)
 }
 
 //===================Methods===================
@@ -53,6 +57,11 @@ func (a *Account) GetPubkeyShow() string {
 
 func NewAccountTree() *AccountTree {
 	tree := new(AccountTree)
+	// We can change the height of the Tree here
+	tree.HashValueZeros = make([]*big.Int, utils.BigTreeHeight) // we start counting from 0
+	tree.Node = make([]*big.Int, (1<<(utils.BigTreeHeight))-1)
+	tree.Arr = make([]*Account, 1<<(utils.BigTreeHeight-1))
+
 	// Create the last layer of the tree
 	bigInZero := big.NewInt(0)
 	for i := 0; i < utils.AccountSize; i++ {
@@ -66,10 +75,15 @@ func NewAccountTree() *AccountTree {
 		}
 		tree.Node[indexNumber] = tree.Arr[i].GetHash()
 	}
+
 	// Update the hash of the node from upper layer to the root
-	for index := (1 << (utils.TreeHeight - 1)) - 2; index >= 0; index-- {
+	tree.HashValueZeros[utils.BigTreeHeight-1] = tree.Arr[utils.AccountSize-1].GetHash()
+	for index := utils.BigTreeHeight - 2; index >= 0; index-- {
+		tree.HashValueZeros[index] = utils.MultiMiMC7BigInt(tree.HashValueZeros[index+1], tree.HashValueZeros[index+1])
+	}
+
+	for index := (utils.AccountSize) - 2; index >= 0; index-- {
 		tree.Node[index] = utils.MultiMiMC7BigInt(tree.Node[index*2+1], tree.Node[index*2+2])
-		tree.HashValueZeros[index] = tree.Node[index]
 	}
 	return tree
 }
@@ -77,25 +91,21 @@ func NewAccountTree() *AccountTree {
 func NewTreeFromAccounts(accounts []*Account) *AccountTree {
 	tree := new(AccountTree)
 
+	// TODO: Check this shiet out please
+	// We can change the height of the Tree here depend on the number of accounts from the input were given
+	// --> find smallest H such that 2**(H - 1) >= len(accounts)
+	tree.HashValueZeros = make([]*big.Int, utils.TreeHeight) // we start counting from 0
+	tree.Node = make([]*big.Int, (1<<(utils.TreeHeight))-1)
+	tree.Arr = make([]*Account, 1<<(utils.TreeHeight-1))
+
 	accountSize := len(accounts)
-
-	// ----
-
-	// 		0
-	// 	1	    2
-	//   3   4      5      6
-	// 7 8  9 10  11 12  13 14
-
-	// ---
-	// --
-	// Create the last layer of the tree
 	for i := 0; i < accountSize; i++ {
-		indexNumber := i + (1 << (utils.TreeHeight - 1)) - 1
+		indexNumber := i + utils.RollupSize - 1
 		tree.Arr[i] = accounts[i]
 		tree.Node[indexNumber] = tree.Arr[i].GetHash()
 	}
 	// Update the hash of the node from upper layer to the root
-	for index := (1 << (utils.TreeHeight - 1)) - 2; index >= 0; index-- {
+	for index := utils.RollupSize - 2; index >= 0; index-- {
 		tree.Node[index] = utils.MultiMiMC7BigInt(
 			tree.Node[index*2+1],
 			tree.Node[index*2+2],
@@ -104,9 +114,15 @@ func NewTreeFromAccounts(accounts []*Account) *AccountTree {
 	return tree
 }
 
+// TODO: update this into finding more suitable position to add near the leaf-level
 func (tree *AccountTree) FindEmptyNodeIndex() int {
+	// Since we already know the fixed height of the register tree, we can jump directly to that level.
+	index := 0
 	for i := 1; i < len(tree.Node); i++ {
-		if tree.Node[i].Cmp(tree.HashValueZeros[i]) == 0 {
+		if (i & (i + 1)) == 0 {
+			index++
+		}
+		if tree.Node[i].Cmp(tree.HashValueZeros[index]) == 0 {
 			return i
 		}
 	}
@@ -150,18 +166,23 @@ func (tree *AccountTree) GetRoot() *big.Int {
 func (tree *AccountTree) AddSubTree(index int, subTree *AccountTree) {
 	// update hash value
 	level := 0
+	// index passed in as value 1, we want to use that value to navigate and update the respective node
+	// make a complete binary tree index from 0
+	/**
+						0
+			1 						2
+		3			4			5			6
+	7		8	9		10	11		12	13		14
+	*/
+
 	for i := 0; i < len(subTree.Node); i++ {
 		// find index of the node in the tree
 		// level change when i = 1, 3, 7, 15 => all bit of i is 1
-		if i&(i+1) == 0 {
-			fmt.Printf("AddSubTree: level = %d, i: %d \n", level, i)
-			level += 1
-		}
 		fmt.Println("AddSubTree: index = ", (index<<level)+i)
 		tree.Node[(index<<level)+i] = subTree.Node[i]
-		if i == 6 {
-			// TODO: hard code here
-			break
+		if i > 0 && i&(i+1) == 0 {
+			fmt.Printf("AddSubTree: level = %d, i: %d \n", level, i)
+			level += 1
 		}
 	}
 

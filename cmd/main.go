@@ -4,10 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
 	"net/http"
@@ -16,6 +12,11 @@ import (
 	"zk-rollups/contracts/middleware_contract"
 	"zk-rollups/internal/models"
 	"zk-rollups/internal/service"
+
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (

@@ -27,10 +27,12 @@ var (
 func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middleware_contract.MiddlewareContract, error) {
 	// ================ Init Account Tree ================
 	accountTree := models.NewAccountTree()
+	fmt.Println("Created New Account Tree")
 
 	// ================== Deploy contracts ==================
 	// load json file accounts
 	addressesFile := helpers.LoadJsonAccounts()
+	fmt.Println("Loaded file json")
 
 	// load Auth to deploy contracts
 	auth0, err := helpers.LoadAuth(addressesFile, client, 0)
@@ -38,12 +40,15 @@ func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middle
 		fmt.Println("error when load auth 0 to deploy contracts")
 		log.Fatal(err)
 	}
+	fmt.Println("Loaded auth0")
 
 	auth1, err := helpers.LoadAuth(addressesFile, client, 1)
 	if err != nil {
 		fmt.Println("error when load auth 1 to deploy contracts")
 		log.Fatal(err)
 	}
+
+	fmt.Println("Loaded auth1")
 
 	// deploy contracts
 	// Mimc contract
@@ -58,12 +63,14 @@ func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middle
 	_ = mimcAddress
 
 	// Middleware contract
-	initialAccountRoot := new(big.Int)
+	initialAccountRoot := new(big.Int).SetInt64(0)
 	middlewareAddress, middTx, middlewareInstance, err := middleware_contract.DeployMiddlewareContract(auth1, client, mimcAddress, initialAccountRoot)
+
 	if err != nil {
 		fmt.Println("error deploy Middleware contracts")
 		log.Fatal(err)
 	}
+
 	fmt.Println("Success, Middleware contract address: ", middlewareAddress.Hex())
 	_ = middlewareInstance
 	_ = middTx
@@ -223,7 +230,7 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 
 	newAccountTree := models.NewTreeFromAccounts(accounts)
 	fmt.Println("Done creating new tree")
-	// Verify signature: luc dung luc sai :(((
+
 	for _, tx := range txs {
 		valid := tx.VerifyTx()
 		if !valid {

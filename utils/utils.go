@@ -73,6 +73,6 @@ func PrintJson(data interface{}) error {
 		return err
 	}
 
-	fmt.Println("JSON data written to person.json")
+	fmt.Println("JSON data written to Input.json")
 	return nil
 }

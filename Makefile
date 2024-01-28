@@ -10,7 +10,7 @@ proto-gw:
 		--grpc-gateway_opt paths=source_relative \
 		api/api.proto
 ganache:
-	ganache --wallet.totalAccounts=20 --wallet.accountKeysPath="$(GEN_DIR)/accounts.json" --wallet.defaultBalance=1000
+	ganache --wallet.totalAccounts=20 --wallet.accountKeysPath="$(GEN_DIR)/accounts.json" --wallet.defaultBalance=100000
 
 run:
 	go run cmd/*.go
