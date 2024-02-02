@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"zk-rollups/utils"
 
@@ -25,18 +26,6 @@ type AccountTree struct {
 	HashValueZeros []*big.Int // utils.BigTreeHeight
 	Node           []*big.Int // (1 << (utils.BigTreeHeight)) - 1
 	Arr            []*Account // 1 << (utils.BigTreeHeight - 1)
-}
-
-type BigAccountTree struct {
-	HashValueZeros []*big.Int // utils.BigTreeHeight
-	Node           []*big.Int // (1 << (utils.BigTreeHeight)) - 1
-	Arr            []*Account // 1 << (utils.BigTreeHeight - 1)
-}
-
-// TODO: update this after the Account Tree
-type TxTree struct {
-	Node [][]byte       // (1 << (utils.TreeHeight)) - 1
-	Arr  []*Transaction // 1 << (utils.TreeHeight - 1)
 }
 
 //===================Methods===================
@@ -91,20 +80,19 @@ func NewAccountTree() *AccountTree {
 func NewTreeFromAccounts(accounts []*Account) *AccountTree {
 	tree := new(AccountTree)
 
-	// TODO: Check this shiet out please
 	// We can change the height of the Tree here depend on the number of accounts from the input were given
 	// --> find smallest H such that 2**(H - 1) >= len(accounts)
-	tree.HashValueZeros = make([]*big.Int, utils.TreeHeight) // we start counting from 0
-	tree.Node = make([]*big.Int, (1<<(utils.TreeHeight))-1)
-	tree.Arr = make([]*Account, 1<<(utils.TreeHeight-1))
+	tree.Node = make([]*big.Int, (1<<(utils.RollupTreeHeight))-1) // 2^3 - 1 = 7
+	tree.Arr = make([]*Account, 1<<(utils.RollupTreeHeight-1))    // 2^2 = 4
 
 	accountSize := len(accounts)
 	for i := 0; i < accountSize; i++ {
-		indexNumber := i + utils.RollupSize - 1
+		indexNumber := i + utils.RollupSize - 1 // 0 + 2^2 - 1 = 3
 		tree.Arr[i] = accounts[i]
 		tree.Node[indexNumber] = tree.Arr[i].GetHash()
 	}
 	// Update the hash of the node from upper layer to the root
+	// we start from the end of the second last layer: 2^(second depth) - 2 = 2^2 - 2 = 2
 	for index := utils.RollupSize - 2; index >= 0; index-- {
 		tree.Node[index] = utils.MultiMiMC7BigInt(
 			tree.Node[index*2+1],
@@ -114,6 +102,7 @@ func NewTreeFromAccounts(accounts []*Account) *AccountTree {
 	return tree
 }
 
+// FindEmptyNodeIndex ...
 // TODO: update this into finding more suitable position to add near the leaf-level
 func (tree *AccountTree) FindEmptyNodeIndex() int {
 	// Since we already know the fixed height of the register tree, we can jump directly to that level.
@@ -149,9 +138,9 @@ func (tree *AccountTree) GetProof(idx int) ([]*big.Int, []int) {
 func (tree *AccountTree) UpdateTree(index int, account *Account) {
 	// Update the leaf node
 	tree.Arr[index] = account
-	tree.Node[index+(1<<utils.TreeHeight)-1] = account.GetHash()
+	tree.Node[index+(1<<utils.RollupTreeHeight)-1] = account.GetHash()
 	// Update the hash of the node from upper layer to the root
-	for index := (1 << (utils.TreeHeight - 1)) - 2; index >= 0; index-- {
+	for index := (1 << (utils.RollupTreeHeight - 1)) - 2; index >= 0; index-- {
 		tree.Node[index] = utils.MultiMiMC7BigInt(
 			tree.Node[index*2+1],
 			tree.Node[index*2+2],
@@ -209,9 +198,9 @@ func (tree *AccountTree) PrintTree() {
 }
 
 // ReHashing re-hash the tree from index to the root
-// it uses the hash value of the node at index and its proof (not yet)
+// only rehash in the path from the leaf to the root, not the whole tree
 func (tree *AccountTree) ReHashing(index int) {
-	for ; index > 0; index-- {
+	for index > 0 {
 		if index%2 == 0 {
 			tree.Node[(index-1)/2] = utils.MultiMiMC7BigInt(
 				tree.Node[index-1],
@@ -234,8 +223,9 @@ func (tree *AccountTree) AddBalanceToAccount(pubX, pubY *big.Int, amount *big.In
 		if currAcc == nil {
 			continue
 		}
+		// finding account
 		if currAcc.PubX.Cmp(pubX) == 0 && currAcc.PubY.Cmp(pubY) == 0 {
-			// find the account => update
+			// found the account => update
 			fmt.Println("AddTxToAccount: found account, old balance = ", tree.Arr[i].Balance.String())
 			fmt.Println("AddTxToAccount: tx amount = ", amount.String())
 			if isIncrease {
@@ -244,6 +234,10 @@ func (tree *AccountTree) AddBalanceToAccount(pubX, pubY *big.Int, amount *big.In
 				tree.Arr[i].Balance.Sub(tree.Arr[i].Balance, amount)
 			}
 			fmt.Println("AddTxToAccount: new balance = ", tree.Arr[i].Balance.String())
+
+			// rehash the tree from the leaf to the root
+			tree.ReHashing(i + (1 << (utils.BigTreeHeight - 1)) - 1) // i + 2^15 - 1 = 32767 + i
+
 			return i
 		}
 	}
@@ -264,22 +258,25 @@ func (tree *AccountTree) UpdateAccount(acc *Account) int {
 	return -1
 }
 
-//func NewTxTree() *TxTree {
-//	tree := new(TxTree)
-//	// Create the last layer of the tree
-//	for i := 0; i < (1 << (utils.TreeHeight - 1)); i++ {
-//		indexNumber := i + (1 << (utils.TreeHeight - 1)) - 1
-//		tree.Arr[i] = new(Transaction)
-//		tree.Tree[indexNumber] = Node{tree.Arr[i].GetHash()}
-//	}
-//	// Update the hash of the node from upper layer to the root
-//	for index := (1 << (utils.TreeHeight - 1)) - 2; index >= 0; index-- {
-//		tree.Tree[index] = Node{
-//			hash: utils.MiMCHash(
-//				tree.Tree[index*2+1].hash,
-//				tree.Tree[index*2+2].hash,
-//			).Bytes(),
-//		}
-//	}
-//	return tree
-//}
+func CreateNewAccount(privateKeyInput string) (*Account, babyjub.PrivateKey) {
+	// remove 0x from hex string if exist
+	if len(privateKeyInput) > 2 && privateKeyInput[:2] == "0x" {
+		privateKeyInput = privateKeyInput[2:]
+	}
+
+	// Convert hex string to bytes
+	privateKeyBytes := common.FromHex(privateKeyInput)
+
+	// Create PrivateKey from bytes
+	var privateKey babyjub.PrivateKey
+	copy(privateKey[:], privateKeyBytes)
+
+	publicKey := privateKey.Public()
+	return &Account{
+		Index:   -1, // which means this account is not in the tree (or free account, not set up yet)
+		PubX:    publicKey.Point().X,
+		PubY:    publicKey.Point().Y,
+		Nonce:   big.NewInt(0),
+		Balance: big.NewInt(0),
+	}, privateKey
+}

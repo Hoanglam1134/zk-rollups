@@ -22,6 +22,8 @@ import (
 var (
 	DepositRegisterTxs  []*models.Transaction
 	DepositExistenceTxs []*models.Transaction
+	TransferTxs         []*models.Transaction
+	WithdrawTxs         []*models.Transaction
 )
 
 func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middleware_contract.MiddlewareContract, error) {
@@ -32,17 +34,22 @@ func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middle
 	// ================== Deploy contracts ==================
 	// load json file accounts
 	addressesFile := helpers.LoadJsonAccounts()
-	fmt.Println("Loaded file json")
 
 	// load Auth to deploy contracts
-	auth0, err := helpers.LoadAuth(addressesFile, client, 0)
+	auth0, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+		AddressesFile: addressesFile,
+		Index:         0,
+	})
 	if err != nil {
 		fmt.Println("error when load auth 0 to deploy contracts")
 		log.Fatal(err)
 	}
 	fmt.Println("Loaded auth0")
 
-	auth1, err := helpers.LoadAuth(addressesFile, client, 1)
+	auth1, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+		AddressesFile: addressesFile,
+		Index:         1,
+	})
 	if err != nil {
 		fmt.Println("error when load auth 1 to deploy contracts")
 		log.Fatal(err)
@@ -96,28 +103,6 @@ func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middle
 			}
 		}
 	}(sub, logs, accountTree)
-
-	// ================== Call contracts ==================
-	// test deposit from 2 -> 3
-	auth2, _ := helpers.LoadAuth(addressesFile, client, 2)
-
-	for i := 1; i <= 4; i++ {
-		depositTx := helpers.DebugCreateTx(15)
-		//  prepare data
-		fromX := depositTx.FromX
-		fromY := depositTx.FromY
-		toX := depositTx.ToX
-		toY := depositTx.ToY
-		r8x := depositTx.R8X
-		r8y := depositTx.R8Y
-		s := depositTx.S
-		tx, err := middlewareInstance.Deposit(auth2, fromX, fromY, toX, toY, depositTx.Amount, r8x, r8y, s)
-		if err != nil {
-			fmt.Println("error call deposit middleware contract")
-			log.Fatal(err)
-		}
-		_ = tx
-	}
 	return accountTree, middlewareInstance, nil
 }
 
@@ -131,6 +116,14 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 	fmt.Println("vlog.Topics[0].Hex(): ", vLog.Topics[0].Hex())
 
 	switch vLog.Topics[0].Hex() {
+	case utils.TopicGetString:
+		events, err := middlewareContractAbi.Unpack(utils.NameGetString, vLog.Data)
+		if err != nil {
+			fmt.Println("error Unpack middleware event NameGetString")
+			log.Fatal(err)
+		}
+		log.Println("Debug from Middleware contract: ", events[0].(string))
+
 	case utils.TopicDepositRegister:
 		fmt.Println("Handling event eDepositRegister")
 		events, err := middlewareContractAbi.Unpack(utils.NameDepositRegister, vLog.Data)
@@ -212,14 +205,43 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 			fmt.Println("error: account sender not found")
 			return
 		}
-		// TODO: need re-hash after
+	case utils.TopicWithdraw:
+		fmt.Println("Handling event eWithdraw")
+		events, err := middlewareContractAbi.Unpack(utils.NameWithdraw, vLog.Data)
+		if err != nil {
+			fmt.Println("error Unpack middleware event eWithdraw")
+			log.Fatal(err)
+		}
+		transferTx := &models.Transaction{
+			FromX:  events[0].(*big.Int),
+			FromY:  events[1].(*big.Int),
+			ToX:    events[2].(*big.Int),
+			ToY:    events[3].(*big.Int),
+			Amount: events[4].(*big.Int),
+			Nonce:  new(big.Int),
+			R8X:    events[5].(*big.Int),
+			R8Y:    events[6].(*big.Int),
+			S:      events[7].(*big.Int),
+		}
+		fmt.Println("WITHDRAW ...")
+		// add balance to receiver
+		accountIdx := accountTree.AddBalanceToAccount(transferTx.ToX, transferTx.ToY, transferTx.Amount, true)
+		if accountIdx == -1 {
+			fmt.Println("error: account receiver not found")
+			return
+		}
+		// sub balance from sender
+		accountIdx = accountTree.AddBalanceToAccount(transferTx.FromX, transferTx.FromY, transferTx.Amount, false)
+		if accountIdx == -1 {
+			fmt.Println("error: account sender not found")
+			return
+		}
 	default:
 		fmt.Println("error: not found event")
 	}
 }
 
-// Rollup is a function to update account tree
-// -
+// RollupRegister ...
 func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) *models.DepositRegisterProof {
 	fmt.Println("RollupRegister")
 	oldAccountRoot := accountTree.GetRoot()
@@ -234,7 +256,7 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 	for _, tx := range txs {
 		valid := tx.VerifyTx()
 		if !valid {
-			fmt.Println("error: tx invalid, wrong signature")
+			fmt.Println("[RollupRegister] error: tx invalid, wrong signature")
 			return nil
 		}
 	}
@@ -273,17 +295,43 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 func RollupExistence(accountTree *models.AccountTree, txs []*models.Transaction) *models.DepositRegisterProof {
 	fmt.Println("RollupExistence")
 
+	oldAccountRoot := accountTree.GetRoot()
+	var intermediateRoots []*big.Int
+	//accounts := models.ToListAccounts(txs)
+
+	for _, tx := range txs {
+		valid := tx.VerifyTx()
+		if !valid {
+			fmt.Println("[RollupExistence] error: tx invalid, wrong signature")
+			return nil
+		}
+	}
+
 	// Update new balance to accounts
 	for _, tx := range txs {
+		// first: add new balance to account
+		// in AddBalanceToAccount, it also rehashes the tree after adding new balance
 		accountIdx := accountTree.AddBalanceToAccount(tx.ToX, tx.ToY, tx.Amount, true)
 		if accountIdx == -1 {
 			fmt.Println("error: account not found")
 			return nil
 		}
+
+		// second: retrieve proofs
+		intermediateRoots = append(intermediateRoots, accountTree.GetRoot())
 	}
 
-	// rehashing
-	accountTree.ReHashing(14) // TODO: hard code here
+	// print file json
+	finalProof := &models.DepositExistenceProof{
+		OldAccountRoot:    oldAccountRoot,
+		NewAccountRoot:    nil,
+		IntermediateRoots: intermediateRoots,
+	}
+	errJson := utils.PrintJson(finalProof)
+	if errJson != nil {
+		fmt.Println("[RollupExistence] error print json")
+		log.Fatal(errJson)
+	}
 	return nil
 }
 

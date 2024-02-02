@@ -3,3 +3,4 @@ node_modules
 vendor
 contracts/file_gen
 test_fold
+contracts/abigen

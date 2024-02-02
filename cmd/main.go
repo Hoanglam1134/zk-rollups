@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/rs/cors"
 	"log"
 	"net"
 	"net/http"
@@ -14,7 +15,7 @@ import (
 	"zk-rollups/internal/service"
 
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -35,17 +36,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// connect to ganache provider: done
-	// init account tree: Kham
-	// deploy smart contracts (middleware, verifier, mimc): done
-	// start stream listen event from smart contracts: doing
-
-	accountTree, middIns, err := DeploySmartContract(client)
+	accountTree, instance, err := DeploySmartContract(client)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("Deploy smart contracts successfully")
-	if err = RunServer(client, accountTree, middIns); err != nil {
+	if err = RunServer(client, accountTree, instance); err != nil {
 		os.Exit(1)
 	}
 }
@@ -77,8 +73,18 @@ func RunServer(client *ethclient.Client, accountTree *models.AccountTree, middle
 	if err != nil {
 		return err
 	}
-
 	fmt.Println("HTTP server listening on port 8081")
+
+	// add cors
+	withCors := cors.New(cors.Options{
+		AllowOriginFunc:  func(origin string) bool { return true },
+		AllowedMethods:   []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"ACCEPT", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}).Handler(mux)
+
 	// Start HTTP server (and proxy calls to gRPC server endpoint)
-	return http.ListenAndServe(HttpAddress, mux)
+	return http.ListenAndServe(HttpAddress, withCors)
 }

@@ -3,19 +3,16 @@ package helpers
 import (
 	"context"
 	"crypto/ecdsa"
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"log"
-	"math/big"
-	"os"
-	"zk-rollups/internal/models"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/iden3/go-iden3-crypto/babyjub"
 	"golang.org/x/exp/maps"
+	"log"
+	"math/big"
+	"os"
+	"zk-rollups/utils"
 )
 
 type AddressesFile struct {
@@ -40,17 +37,34 @@ func LoadJsonAccounts() AddressesFile {
 	return addressesFile
 }
 
-func LoadAuth(addressesFile AddressesFile, client *ethclient.Client, index int) (*bind.TransactOpts, error) {
+type LoadAccountsOption struct {
+	AddressesFile AddressesFile
+	Index         int32
+	PrivateKey    string
+}
+
+func LoadAuth(client *ethclient.Client, option LoadAccountsOption) (*bind.TransactOpts, error) {
 	// get chain id
 	chainID, err := client.ChainID(context.Background())
 	if err != nil {
 		return nil, err
 	}
 
-	pubKeys := maps.Keys(addressesFile.AddressesMap)
-	userZeroPubKey := pubKeys[index]
-	privateKeyHex := addressesFile.PrivateKeysMap[userZeroPubKey][2:]
-	privateKeyECDSA, err := crypto.HexToECDSA(privateKeyHex)
+	privateKey := option.PrivateKey
+
+	if option.PrivateKey == utils.EmptyString {
+		// if PrivateKey is empty, use index to set private key
+		pubKeys := maps.Keys(option.AddressesFile.AddressesMap)
+		userPubKey := pubKeys[option.Index]
+		privateKey = option.AddressesFile.PrivateKeysMap[userPubKey]
+	}
+
+	// remove 0x if it exists
+	if len(privateKey) > utils.TwoNumber && privateKey[:2] == "0x" {
+		privateKey = privateKey[2:]
+	}
+
+	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
 	if err != nil {
 		fmt.Println("error HexToECDSA private key")
 		log.Fatal(err)
@@ -86,28 +100,4 @@ func LoadAuth(addressesFile AddressesFile, client *ethclient.Client, index int) 
 		return nil, err
 	}
 	return auth, nil
-}
-
-func DebugCreateTx(amount int) models.Transaction {
-	privKey1 := babyjub.NewRandPrivKey()
-	privKey2 := babyjub.NewRandPrivKey()
-	edDsaPubkeyFrom := privKey1.Public()
-	edDsaPubkeyTo := privKey2.Public()
-
-	upper_bound, _ := new(big.Int).SetString("69696969", 10)
-
-	nonce_number, _ := rand.Int(rand.Reader, upper_bound)
-	_ = nonce_number
-	tx := models.Transaction{
-		FromX:  edDsaPubkeyFrom.Point().X,
-		FromY:  edDsaPubkeyFrom.Point().Y,
-		ToX:    edDsaPubkeyTo.Point().X,
-		ToY:    edDsaPubkeyTo.Point().Y,
-		Amount: big.NewInt(int64(0)),
-		Nonce:  big.NewInt(0), //nonce_number,
-	}
-
-	// sign Tx, also set new values to R8X, R8Y, S
-	_ = tx.SignTx(privKey1)
-	return tx
 }

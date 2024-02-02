@@ -11,17 +11,26 @@ service LayerTwoService {
     };
   }
 
-  // DebugDepositExistence
-  rpc DebugDepositExistence(DebugDepositExistenceRequest) returns (DebugDepositExistenceResponse) {
+  // DebugDeposit
+  rpc DebugDeposit(DebugDepositRequest) returns (DebugDepositResponse) {
     option (google.api.http) = {
-      get: "/debug/deposit-existence"
+      post: "/debug/deposit"
+      body: "*"
     };
   }
 
   // DebugTransferLayer2
-  rpc DebugTransferLayer2(DebugTransferLayer2Request) returns (DebugTransferLayer2Response) {
+  rpc DebugTransferLayer2(DebugTransferRequest) returns (DebugTransferResponse) {
     option (google.api.http) = {
-      get: "/debug/transfer"
+      post: "/debug/transfer"
+      body: "*"
+    };
+  }
+
+  rpc DebugWithdraw(DebugWithdrawRequest) returns (DebugWithdrawResponse) {
+    option (google.api.http) = {
+      post: "/debug/withdraw"
+      body: "*"
     };
   }
 }
@@ -39,18 +48,33 @@ message GetAccountsStatusResponse {
   repeated Account accounts = 1;
 }
 
-message DebugDepositExistenceRequest {
-  string id = 1;
+message Transaction {
+  string from = 1;
+  string to = 2;
+  int64 amount = 3;
 }
 
-message DebugDepositExistenceResponse {
+message DebugDepositRequest {
+  Transaction transaction = 1;
+}
+
+message DebugDepositResponse {
   string res = 1;
 }
 
-message DebugTransferLayer2Request {
-  string id = 1;
+message DebugTransferRequest {
+  Transaction transaction = 1;
 }
 
-message DebugTransferLayer2Response {
+message DebugTransferResponse {
   string res = 1;
+}
+
+message DebugWithdrawRequest {
+  Transaction transaction = 1;
+}
+
+message DebugWithdrawResponse {
+  string res = 1;
+  string balance = 2;
 }
