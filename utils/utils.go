@@ -3,6 +3,8 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/iden3/go-iden3-crypto/babyjub"
 	"math/big"
 	"os"
 
@@ -75,4 +77,15 @@ func PrintJson(data interface{}) error {
 
 	fmt.Println("JSON data written to Input.json")
 	return nil
+}
+
+func Priv2Pub(privKey string) *babyjub.PublicKey {
+	// Convert hex string to bytes
+	privateKeyBytes := common.FromHex(privKey)
+
+	// Create PrivateKey from bytes
+	var privateKey babyjub.PrivateKey
+	copy(privateKey[:], privateKeyBytes)
+
+	return privateKey.Public()
 }

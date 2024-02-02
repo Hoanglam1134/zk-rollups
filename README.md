@@ -8,3 +8,6 @@
 - Open two terminal panels
 - One run command `make ganache`
 - The other run command `make run`
+
+## Makefile:
+- Run `make generate-contracts` to generate MiddleWare.sol

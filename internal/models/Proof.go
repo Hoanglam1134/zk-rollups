@@ -9,3 +9,9 @@ type DepositRegisterProof struct {
 	ProofPosEmptyTree []int
 	DepositRegisterTx *Transaction
 }
+
+type DepositExistenceProof struct {
+	OldAccountRoot    *big.Int
+	NewAccountRoot    *big.Int
+	IntermediateRoots []*big.Int
+}
