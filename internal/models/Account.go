@@ -20,8 +20,6 @@ type Account struct {
 // Default tree height is 4, which can store 2^(4-1) = 8 accounts
 // Tree hash value is 2^(4) - 1 = 15, include 8 leaf nodes and 7 internal nodes
 
-// TODO: turn this into slice of big.Int
-
 type AccountTree struct {
 	HashValueZeros []*big.Int // utils.BigTreeHeight
 	Node           []*big.Int // (1 << (utils.BigTreeHeight)) - 1
@@ -78,16 +76,16 @@ func NewAccountTree() *AccountTree {
 }
 
 func NewTreeFromAccounts(accounts []*Account) *AccountTree {
+	accountSize := len(accounts)
 	tree := new(AccountTree)
 
 	// We can change the height of the Tree here depend on the number of accounts from the input were given
-	// --> find smallest H such that 2**(H - 1) >= len(accounts)
-	tree.Node = make([]*big.Int, (1<<(utils.RollupTreeHeight))-1) // 2^3 - 1 = 7
-	tree.Arr = make([]*Account, 1<<(utils.RollupTreeHeight-1))    // 2^2 = 4
+	// --> find smallest H such that 2**(H - 1) >= len(accounts) ?
+	tree.Node = make([]*big.Int, 2*accountSize-1)
+	tree.Arr = make([]*Account, accountSize)
 
-	accountSize := len(accounts)
 	for i := 0; i < accountSize; i++ {
-		indexNumber := i + utils.RollupSize - 1 // 0 + 2^2 - 1 = 3
+		indexNumber := i + accountSize - 1 // 0 + 4 - 1 = 3
 		tree.Arr[i] = accounts[i]
 		tree.Node[indexNumber] = tree.Arr[i].GetHash()
 	}
@@ -231,6 +229,11 @@ func (tree *AccountTree) AddBalanceToAccount(pubX, pubY *big.Int, amount *big.In
 			if isIncrease {
 				tree.Arr[i].Balance.Add(tree.Arr[i].Balance, amount)
 			} else {
+				// in case of decrease, we need to check if the balance is enough
+				if tree.Arr[i].Balance.Cmp(amount) == utils.MinusOne {
+					fmt.Println("[AddTxToAccount] case sub: balance is not enough")
+					return utils.MinusOne
+				}
 				tree.Arr[i].Balance.Sub(tree.Arr[i].Balance, amount)
 			}
 			fmt.Println("AddTxToAccount: new balance = ", tree.Arr[i].Balance.String())

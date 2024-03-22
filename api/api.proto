@@ -19,8 +19,8 @@ service LayerTwoService {
     };
   }
 
-  // DebugTransferLayer2
-  rpc DebugTransferLayer2(DebugTransferRequest) returns (DebugTransferResponse) {
+  // DebugTransfer
+  rpc DebugTransfer(DebugTransferRequest) returns (DebugTransferResponse) {
     option (google.api.http) = {
       post: "/debug/transfer"
       body: "*"

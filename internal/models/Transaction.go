@@ -3,6 +3,7 @@ package models
 import (
 	"log"
 	"math/big"
+	"zk-rollups/utils"
 
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	"github.com/iden3/go-iden3-crypto/mimc7"
@@ -20,7 +21,12 @@ type Transaction struct {
 	S      *big.Int
 }
 
-func (tx *Transaction) HashMimc() *big.Int {
+type TransactionTree struct {
+	Node []*big.Int
+	Arr  []*Transaction
+}
+
+func (tx *Transaction) GetHash() *big.Int {
 	ret, err := mimc7.Hash(
 		[]*big.Int{tx.FromX,
 			tx.FromY,
@@ -31,15 +37,15 @@ func (tx *Transaction) HashMimc() *big.Int {
 	)
 
 	if err != nil {
-		log.Fatal("HashMimc() of Transaction type is error")
-		return big.NewInt(0)
+		log.Fatal("[Transaction.GetHash] of Transaction type is error")
+		return nil
 	}
 
 	return ret
 }
 
 func (tx *Transaction) SignTx(privateKey babyjub.PrivateKey) *babyjub.Signature {
-	signature := privateKey.SignMimc7(tx.HashMimc())
+	signature := privateKey.SignMimc7(tx.GetHash())
 	tx.R8X = signature.R8.X
 	tx.R8Y = signature.R8.Y
 	tx.S = signature.S
@@ -62,7 +68,7 @@ func (tx *Transaction) VerifyTx() bool {
 	}
 
 	// TODO: improve this to reduce using hashMimc()
-	return edDsaPubkeyFrom.VerifyMimc7(tx.HashMimc(), &signature)
+	return edDsaPubkeyFrom.VerifyMimc7(tx.GetHash(), &signature)
 }
 
 // ToListAccounts convert list of transactions to list of accounts
@@ -80,4 +86,33 @@ func ToListAccounts(txs []*Transaction) []*Account {
 		}
 	}
 	return accounts
+}
+
+func (tx *TransactionTree) GetRoot() *big.Int {
+	return tx.Node[0]
+}
+
+func NewTreeFromTransactions(txs []*Transaction) *TransactionTree {
+	transactionSize := len(txs)
+
+	// create a new tree from transactions
+	tree := &TransactionTree{
+		Node: make([]*big.Int, 2*transactionSize-1), // 2n-1
+		Arr:  make([]*Transaction, transactionSize),
+	}
+
+	for i := 0; i < transactionSize; i++ {
+		indexNumber := i + transactionSize - 1 // 0 + 4 - 1 = 3
+		tree.Arr[i] = txs[i]
+		tree.Node[indexNumber] = tree.Arr[i].GetHash()
+	}
+	// Update the hash of the node from upper layer to the root
+	// we start from the end of the second last layer: 2^(second depth) - 2 = 2^2 - 2 = 2
+	for index := transactionSize - 2; index >= 0; index-- {
+		tree.Node[index] = utils.MultiMiMC7BigInt(
+			tree.Node[index*2+1],
+			tree.Node[index*2+2],
+		)
+	}
+	return tree
 }

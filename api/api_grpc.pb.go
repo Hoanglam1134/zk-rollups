@@ -19,10 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	LayerTwoService_GetAccountsStatus_FullMethodName   = "/api.LayerTwoService/GetAccountsStatus"
-	LayerTwoService_DebugDeposit_FullMethodName        = "/api.LayerTwoService/DebugDeposit"
-	LayerTwoService_DebugTransferLayer2_FullMethodName = "/api.LayerTwoService/DebugTransferLayer2"
-	LayerTwoService_DebugWithdraw_FullMethodName       = "/api.LayerTwoService/DebugWithdraw"
+	LayerTwoService_GetAccountsStatus_FullMethodName = "/api.LayerTwoService/GetAccountsStatus"
+	LayerTwoService_DebugDeposit_FullMethodName      = "/api.LayerTwoService/DebugDeposit"
+	LayerTwoService_DebugTransfer_FullMethodName     = "/api.LayerTwoService/DebugTransfer"
+	LayerTwoService_DebugWithdraw_FullMethodName     = "/api.LayerTwoService/DebugWithdraw"
 )
 
 // LayerTwoServiceClient is the client API for LayerTwoService service.
@@ -33,8 +33,8 @@ type LayerTwoServiceClient interface {
 	GetAccountsStatus(ctx context.Context, in *GetAccountsStatusRequest, opts ...grpc.CallOption) (*GetAccountsStatusResponse, error)
 	// DebugDeposit
 	DebugDeposit(ctx context.Context, in *DebugDepositRequest, opts ...grpc.CallOption) (*DebugDepositResponse, error)
-	// DebugTransferLayer2
-	DebugTransferLayer2(ctx context.Context, in *DebugTransferRequest, opts ...grpc.CallOption) (*DebugTransferResponse, error)
+	// DebugTransfer
+	DebugTransfer(ctx context.Context, in *DebugTransferRequest, opts ...grpc.CallOption) (*DebugTransferResponse, error)
 	DebugWithdraw(ctx context.Context, in *DebugWithdrawRequest, opts ...grpc.CallOption) (*DebugWithdrawResponse, error)
 }
 
@@ -64,9 +64,9 @@ func (c *layerTwoServiceClient) DebugDeposit(ctx context.Context, in *DebugDepos
 	return out, nil
 }
 
-func (c *layerTwoServiceClient) DebugTransferLayer2(ctx context.Context, in *DebugTransferRequest, opts ...grpc.CallOption) (*DebugTransferResponse, error) {
+func (c *layerTwoServiceClient) DebugTransfer(ctx context.Context, in *DebugTransferRequest, opts ...grpc.CallOption) (*DebugTransferResponse, error) {
 	out := new(DebugTransferResponse)
-	err := c.cc.Invoke(ctx, LayerTwoService_DebugTransferLayer2_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, LayerTwoService_DebugTransfer_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +90,8 @@ type LayerTwoServiceServer interface {
 	GetAccountsStatus(context.Context, *GetAccountsStatusRequest) (*GetAccountsStatusResponse, error)
 	// DebugDeposit
 	DebugDeposit(context.Context, *DebugDepositRequest) (*DebugDepositResponse, error)
-	// DebugTransferLayer2
-	DebugTransferLayer2(context.Context, *DebugTransferRequest) (*DebugTransferResponse, error)
+	// DebugTransfer
+	DebugTransfer(context.Context, *DebugTransferRequest) (*DebugTransferResponse, error)
 	DebugWithdraw(context.Context, *DebugWithdrawRequest) (*DebugWithdrawResponse, error)
 	mustEmbedUnimplementedLayerTwoServiceServer()
 }
@@ -106,8 +106,8 @@ func (UnimplementedLayerTwoServiceServer) GetAccountsStatus(context.Context, *Ge
 func (UnimplementedLayerTwoServiceServer) DebugDeposit(context.Context, *DebugDepositRequest) (*DebugDepositResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DebugDeposit not implemented")
 }
-func (UnimplementedLayerTwoServiceServer) DebugTransferLayer2(context.Context, *DebugTransferRequest) (*DebugTransferResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DebugTransferLayer2 not implemented")
+func (UnimplementedLayerTwoServiceServer) DebugTransfer(context.Context, *DebugTransferRequest) (*DebugTransferResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DebugTransfer not implemented")
 }
 func (UnimplementedLayerTwoServiceServer) DebugWithdraw(context.Context, *DebugWithdrawRequest) (*DebugWithdrawResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DebugWithdraw not implemented")
@@ -161,20 +161,20 @@ func _LayerTwoService_DebugDeposit_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _LayerTwoService_DebugTransferLayer2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _LayerTwoService_DebugTransfer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DebugTransferRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LayerTwoServiceServer).DebugTransferLayer2(ctx, in)
+		return srv.(LayerTwoServiceServer).DebugTransfer(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: LayerTwoService_DebugTransferLayer2_FullMethodName,
+		FullMethod: LayerTwoService_DebugTransfer_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LayerTwoServiceServer).DebugTransferLayer2(ctx, req.(*DebugTransferRequest))
+		return srv.(LayerTwoServiceServer).DebugTransfer(ctx, req.(*DebugTransferRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -213,8 +213,8 @@ var LayerTwoService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _LayerTwoService_DebugDeposit_Handler,
 		},
 		{
-			MethodName: "DebugTransferLayer2",
-			Handler:    _LayerTwoService_DebugTransferLayer2_Handler,
+			MethodName: "DebugTransfer",
+			Handler:    _LayerTwoService_DebugTransfer_Handler,
 		},
 		{
 			MethodName: "DebugWithdraw",

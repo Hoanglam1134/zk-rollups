@@ -14,7 +14,7 @@ proto-gw:
 protoc:	proto proto-gw
 
 ganache:
-	ganache --wallet.totalAccounts=20 --wallet.accountKeysPath="$(GEN_DIR)/accounts.json" --wallet.defaultBalance=100000
+	ganache --wallet.totalAccounts=20 --wallet.accountKeysPath="$(GEN_DIR)/accounts.json" --wallet.defaultBalance=1000000
 
 run:
 	go run cmd/*.go

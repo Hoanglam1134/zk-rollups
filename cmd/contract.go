@@ -29,7 +29,6 @@ var (
 func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middleware_contract.MiddlewareContract, error) {
 	// ================ Init Account Tree ================
 	accountTree := models.NewAccountTree()
-	fmt.Println("Created New Account Tree")
 
 	// ================== Deploy contracts ==================
 	// load json file accounts
@@ -98,7 +97,6 @@ func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middle
 				fmt.Println("error subscribe filter logs")
 				log.Fatal(err)
 			case vLog := <-logs:
-				fmt.Println("\nHandle contract log")
 				handleMiddlewareLog(vLog, tree)
 			}
 		}
@@ -113,7 +111,8 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 		fmt.Println("error abi.JSON middleware contract")
 		log.Fatal(err)
 	}
-	fmt.Println("vlog.Topics[0].Hex(): ", vLog.Topics[0].Hex())
+	// uncomment this to get the topic hex value (when changing the smart contract)
+	//fmt.Println("vlog.Topics[0].Hex(): ", vLog.Topics[0].Hex())
 
 	switch vLog.Topics[0].Hex() {
 	case utils.TopicGetString:
@@ -181,7 +180,7 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 			fmt.Println("error Unpack middleware event eTransfer")
 			log.Fatal(err)
 		}
-		transferTx := &models.Transaction{
+		TransferTxs = append(TransferTxs, &models.Transaction{
 			FromX:  events[0].(*big.Int),
 			FromY:  events[1].(*big.Int),
 			ToX:    events[2].(*big.Int),
@@ -191,19 +190,12 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 			R8X:    events[5].(*big.Int),
 			R8Y:    events[6].(*big.Int),
 			S:      events[7].(*big.Int),
-		}
-		fmt.Println("TRANSFER ...")
-		// add balance to receiver
-		accountIdx := accountTree.AddBalanceToAccount(transferTx.ToX, transferTx.ToY, transferTx.Amount, true)
-		if accountIdx == -1 {
-			fmt.Println("error: account receiver not found")
-			return
-		}
-		// sub balance from sender
-		accountIdx = accountTree.AddBalanceToAccount(transferTx.FromX, transferTx.FromY, transferTx.Amount, false)
-		if accountIdx == -1 {
-			fmt.Println("error: account sender not found")
-			return
+		})
+		if len(TransferTxs) == utils.RollupSize {
+			fmt.Println("ROLLING UP TRANSFER...")
+			RollupTransfer(accountTree, TransferTxs)
+			// reset
+			TransferTxs = []*models.Transaction{}
 		}
 	case utils.TopicWithdraw:
 		fmt.Println("Handling event eWithdraw")
@@ -212,7 +204,7 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 			fmt.Println("error Unpack middleware event eWithdraw")
 			log.Fatal(err)
 		}
-		transferTx := &models.Transaction{
+		WithdrawTxs = append(WithdrawTxs, &models.Transaction{
 			FromX:  events[0].(*big.Int),
 			FromY:  events[1].(*big.Int),
 			ToX:    events[2].(*big.Int),
@@ -222,19 +214,12 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 			R8X:    events[5].(*big.Int),
 			R8Y:    events[6].(*big.Int),
 			S:      events[7].(*big.Int),
-		}
-		fmt.Println("WITHDRAW ...")
-		// add balance to receiver
-		accountIdx := accountTree.AddBalanceToAccount(transferTx.ToX, transferTx.ToY, transferTx.Amount, true)
-		if accountIdx == -1 {
-			fmt.Println("error: account receiver not found")
-			return
-		}
-		// sub balance from sender
-		accountIdx = accountTree.AddBalanceToAccount(transferTx.FromX, transferTx.FromY, transferTx.Amount, false)
-		if accountIdx == -1 {
-			fmt.Println("error: account sender not found")
-			return
+		})
+		if len(WithdrawTxs) == utils.RollupSize {
+			fmt.Println("ROLLING UP WITHDRAW...")
+			RollupWithdraw(accountTree, WithdrawTxs)
+			// reset
+			WithdrawTxs = []*models.Transaction{}
 		}
 	default:
 		fmt.Println("error: not found event")
@@ -242,32 +227,20 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 }
 
 // RollupRegister ...
-func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) *models.DepositRegisterProof {
+func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) {
 	fmt.Println("RollupRegister")
+
+	// ============== Proof Account Tree ================
 	oldAccountRoot := accountTree.GetRoot()
-	fmt.Println("Done creating Old Account Root: ", oldAccountRoot)
-
 	accounts := models.ToListAccounts(txs)
-	fmt.Println("Done creating Accounts: ", accounts)
-
 	newAccountTree := models.NewTreeFromAccounts(accounts)
-	fmt.Println("Done creating new tree")
-
-	for _, tx := range txs {
-		valid := tx.VerifyTx()
-		if !valid {
-			fmt.Println("[RollupRegister] error: tx invalid, wrong signature")
-			return nil
-		}
-	}
-
-	fmt.Println("pass!")
+	registerAccountRoot := newAccountTree.GetRoot()
 
 	// // Find empty tree node
 	emptyNodeIndex := accountTree.FindEmptyNodeIndex()
 	if emptyNodeIndex == -1 {
 		fmt.Println("error: tree is full")
-		return nil
+		return
 	}
 	emptyNodeProof, emptyNodeProofPos := accountTree.GetProof(emptyNodeIndex)
 
@@ -276,26 +249,39 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 	accountTree.ReHashing(emptyNodeIndex)
 	newAccountRoot := accountTree.GetRoot()
 
+	// ================== Proof Txs Tree ==================
+	newTxsTree := models.NewTreeFromTransactions(txs)
+
 	// print file json
 	finalProof := &models.DepositRegisterProof{
-		OldAccountRoot:    oldAccountRoot,
-		NewAccountRoot:    newAccountRoot,
-		ProofEmptyTree:    emptyNodeProof,
-		ProofPosEmptyTree: emptyNodeProofPos,
-		DepositRegisterTx: nil,
+		DepositRegisterRoot: newTxsTree.GetRoot(),
+		RegisterAccountRoot: registerAccountRoot,
+		OldAccountRoot:      oldAccountRoot,
+		NewAccountRoot:      newAccountRoot,
+		ProofEmptyTree:      emptyNodeProof,
+		ProofPosEmptyTree:   emptyNodeProofPos,
+		SenderPubKeyX:       nil,
+		SenderPubKeyY:       nil,
+		ReceiverPubKeyX:     nil,
+		ReceiverPubKeyY:     nil,
+		Amount:              nil,
+		R8X:                 nil,
+		R8Y:                 nil,
+		S:                   nil,
+		ProofTxExist:        nil,
+		ProofPosTxExist:     nil,
 	}
-	errJson := utils.PrintJson(finalProof)
+	errJson := utils.PrintJson(finalProof, utils.PathRegister)
 	if errJson != nil {
 		fmt.Println("error print json")
 		log.Fatal(errJson)
 	}
-	return nil
 }
 
-func RollupExistence(accountTree *models.AccountTree, txs []*models.Transaction) *models.DepositRegisterProof {
+func RollupExistence(accountTree *models.AccountTree, txs []*models.Transaction) {
 	fmt.Println("RollupExistence")
 
-	oldAccountRoot := accountTree.GetRoot()
+	//oldAccountRoot := accountTree.GetRoot()
 	var intermediateRoots []*big.Int
 	//accounts := models.ToListAccounts(txs)
 
@@ -303,7 +289,7 @@ func RollupExistence(accountTree *models.AccountTree, txs []*models.Transaction)
 		valid := tx.VerifyTx()
 		if !valid {
 			fmt.Println("[RollupExistence] error: tx invalid, wrong signature")
-			return nil
+			return
 		}
 	}
 
@@ -314,25 +300,92 @@ func RollupExistence(accountTree *models.AccountTree, txs []*models.Transaction)
 		accountIdx := accountTree.AddBalanceToAccount(tx.ToX, tx.ToY, tx.Amount, true)
 		if accountIdx == -1 {
 			fmt.Println("error: account not found")
-			return nil
+			return
 		}
 
 		// second: retrieve proofs
 		intermediateRoots = append(intermediateRoots, accountTree.GetRoot())
 	}
 
-	// print file json
-	finalProof := &models.DepositExistenceProof{
-		OldAccountRoot:    oldAccountRoot,
-		NewAccountRoot:    nil,
-		IntermediateRoots: intermediateRoots,
+	// print file json // not done yet, need to define the struct of proof
+	//finalProof := &models.DepositExistenceProof{
+	//	OldAccountRoot:    oldAccountRoot,
+	//	NewAccountRoot:    nil,
+	//	IntermediateRoots: intermediateRoots,
+	//}
+	//errJson := utils.PrintJson(finalProof, utils.PathExistence)
+	//if errJson != nil {
+	//	fmt.Println("[RollupExistence] error print json")
+	//	log.Fatal(errJson)
+	//}
+}
+
+func RollupTransfer(accountTree *models.AccountTree, txs []*models.Transaction) {
+	fmt.Println("RollupTransfer")
+	//oldAccountRoot := accountTree.GetRoot()
+	var intermediateRoots []*big.Int
+
+	for _, tx := range txs {
+		valid := tx.VerifyTx()
+		if !valid {
+			fmt.Println("[RollupTransfer] error: tx invalid, wrong signature")
+			return
+		}
 	}
-	errJson := utils.PrintJson(finalProof)
-	if errJson != nil {
-		fmt.Println("[RollupExistence] error print json")
-		log.Fatal(errJson)
+
+	// Update new balance to accounts
+	for _, tx := range txs {
+		// first: add new balance to account receiver
+		// in AddBalanceToAccount, it also rehashes the tree after adding new balance
+		accountIdx := accountTree.AddBalanceToAccount(tx.ToX, tx.ToY, tx.Amount, true)
+		if accountIdx == -1 {
+			fmt.Println("error: account not found")
+			return
+		}
+
+		// retrieve proofs
+		intermediateRoots = append(intermediateRoots, accountTree.GetRoot())
+
+		// second: subtract balance from account sender
+		accountIdx = accountTree.AddBalanceToAccount(tx.FromX, tx.FromY, tx.Amount, false)
+		if accountIdx == -1 {
+			fmt.Println("error: account not found")
+			return
+		}
+
+		// retrieve proofs
+		intermediateRoots = append(intermediateRoots, accountTree.GetRoot())
 	}
-	return nil
+	// TODO: need to print file json
+}
+
+func RollupWithdraw(accountTree *models.AccountTree, txs []*models.Transaction) {
+	fmt.Println("RollupWithdraw")
+	//oldAccountRoot := accountTree.GetRoot()
+	var intermediateRoots []*big.Int
+
+	for _, tx := range txs {
+		valid := tx.VerifyTx()
+		if !valid {
+			fmt.Println("[RollupWithdraw] error: tx invalid, wrong signature")
+			return
+		}
+	}
+
+	// Update new balance to accounts
+	for _, tx := range txs {
+		// first: subtract balance from account
+		// in AddBalanceToAccount, it also rehashes the tree after adding new balance
+		accountIdx := accountTree.AddBalanceToAccount(tx.ToX, tx.ToY, tx.Amount, false)
+		if accountIdx == -1 {
+			fmt.Println("error: account not found")
+			return
+		}
+
+		// second: retrieve proofs
+		intermediateRoots = append(intermediateRoots, accountTree.GetRoot())
+	}
+	// TODO: need to print file json
 }
 
 func subscribeLogs(middlewareAddress common.Address, client *ethclient.Client) (ethereum.Subscription, chan types.Log, error) {

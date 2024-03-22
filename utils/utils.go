@@ -61,7 +61,7 @@ func ByteEqual(a, b []byte) bool {
 	return true
 }
 
-func PrintJson(data interface{}) error {
+func PrintJson(data interface{}, fileName string) error {
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		fmt.Println("error marshal json when print")
@@ -69,7 +69,7 @@ func PrintJson(data interface{}) error {
 	}
 
 	// Write JSON data to a file
-	err = os.WriteFile("Input.json", jsonData, 0666)
+	err = os.WriteFile(fileName, jsonData, 0666)
 	if err != nil {
 		fmt.Println("Error writing JSON to file:", err)
 		return err
