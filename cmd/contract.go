@@ -251,6 +251,7 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 
 	// ================== Proof Txs Tree ==================
 	newTxsTree := models.NewTreeFromTransactions(txs)
+	proofTxExist, proofPosTxExist := newTxsTree.GetProofAll()
 
 	// print file json
 	finalProof := &models.DepositRegisterProof{
@@ -260,16 +261,16 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 		NewAccountRoot:      newAccountRoot,
 		ProofEmptyTree:      emptyNodeProof,
 		ProofPosEmptyTree:   emptyNodeProofPos,
-		SenderPubKeyX:       nil,
-		SenderPubKeyY:       nil,
-		ReceiverPubKeyX:     nil,
-		ReceiverPubKeyY:     nil,
-		Amount:              nil,
-		R8X:                 nil,
-		R8Y:                 nil,
-		S:                   nil,
-		ProofTxExist:        nil,
-		ProofPosTxExist:     nil,
+		SenderPubKeyX:       utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.FromX }),
+		SenderPubKeyY:       utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.FromY }),
+		ReceiverPubKeyX:     utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.ToX }),
+		ReceiverPubKeyY:     utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.ToY }),
+		Amount:              utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.Amount }),
+		R8X:                 utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.R8X }),
+		R8Y:                 utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.R8Y }),
+		S:                   utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.S }),
+		ProofTxExist:        proofTxExist,
+		ProofPosTxExist:     proofPosTxExist,
 	}
 	errJson := utils.PrintJson(finalProof, utils.PathRegister)
 	if errJson != nil {

@@ -68,3 +68,38 @@ func Every[T comparable](collection []T, subset []T) bool {
 
 	return true
 }
+
+// GetAt get element at pos of slices
+func GetAt[E any](slices []E, pos int) E {
+	var defaultValue E
+	if len(slices) > pos {
+		return slices[pos]
+	}
+	return defaultValue
+}
+
+// Uniq returns a duplicate-free version of an array, in which only the first occurrence of each element is kept.
+// The order of result values is determined by the order they occur in the array.
+func Uniq[T comparable](slices []T) []T {
+	result := make([]T, 0, len(slices))
+	seen := make(map[T]struct{}, len(slices))
+
+	for _, item := range slices {
+		if _, ok := seen[item]; ok {
+			continue
+		}
+
+		seen[item] = struct{}{}
+		result = append(result, item)
+	}
+
+	return result
+}
+
+func Make[T any](values ...T) []T {
+	res := make([]T, 0, len(values))
+	if len(values) > 0 {
+		res = append(res, values...)
+	}
+	return res
+}

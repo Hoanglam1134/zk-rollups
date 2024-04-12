@@ -26,22 +26,22 @@ signal input proofPosTxExist[noNewAccount][d];
 */
 
 type DepositRegisterProof struct {
-	DepositRegisterRoot *big.Int
-	RegisterAccountRoot *big.Int
-	OldAccountRoot      *big.Int
-	NewAccountRoot      *big.Int
-	ProofEmptyTree      []*big.Int
-	ProofPosEmptyTree   []int
-	SenderPubKeyX       []*big.Int
-	SenderPubKeyY       []*big.Int
-	ReceiverPubKeyX     []*big.Int
-	ReceiverPubKeyY     []*big.Int
-	Amount              []*big.Int
-	R8X                 []*big.Int
-	R8Y                 []*big.Int
-	S                   []*big.Int
-	ProofTxExist        [][]*big.Int
-	ProofPosTxExist     [][]int
+	DepositRegisterRoot *big.Int     `json:"depositRegisterRoot"`
+	RegisterAccountRoot *big.Int     `json:"registerAccountRoot"`
+	OldAccountRoot      *big.Int     `json:"oldAccountRoot"`
+	NewAccountRoot      *big.Int     `json:"newAccountRoot"`
+	ProofEmptyTree      []*big.Int   `json:"proofEmptyTree"`
+	ProofPosEmptyTree   []int        `json:"proofPosEmptyTree"`
+	SenderPubKeyX       []*big.Int   `json:"senderPubKeyX"`
+	SenderPubKeyY       []*big.Int   `json:"senderPubKeyY"`
+	ReceiverPubKeyX     []*big.Int   `json:"receiverPubKeyX"`
+	ReceiverPubKeyY     []*big.Int   `json:"receiverPubKeyY"`
+	Amount              []*big.Int   `json:"amount"`
+	R8X                 []*big.Int   `json:"R8X"`
+	R8Y                 []*big.Int   `json:"R8Y"`
+	S                   []*big.Int   `json:"S"`
+	ProofTxExist        [][]*big.Int `json:"proofTxExist"`
+	ProofPosTxExist     [][]int      `json:"proofPosTxExist"`
 }
 
 type DepositExistenceProof struct {

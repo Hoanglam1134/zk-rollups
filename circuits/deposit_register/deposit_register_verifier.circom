@@ -15,13 +15,13 @@ template Main(D, d) {
     signal input newAccountRoot;
 
     // Private Signals
-    signal input proofExistEmptySubTree[D_d];
-    signal input proofPosExistEmptySubTree[D_d];
+    signal input proofEmptyTree[D_d];
+    signal input proofPosEmptyTree[D_d];
 
-    signal input senderPubkeyX[noNewAccount];
-    signal input senderPubkeyY[noNewAccount];
-    signal input receiverPubkeyX[noNewAccount];
-    signal input receiverPubkeyY[noNewAccount];
+    signal input senderPubKeyX[noNewAccount];
+    signal input senderPubKeyY[noNewAccount];
+    signal input receiverPubKeyX[noNewAccount];
+    signal input receiverPubKeyY[noNewAccount];
     signal input amount[noNewAccount];
     signal input R8X[noNewAccount];
     signal input R8Y[noNewAccount];
@@ -51,10 +51,10 @@ template Main(D, d) {
     for (var i = 0; i < noNewAccount; i++) {
         // hash transaction
         msghash[i] = MultiMiMC7(6, 91);
-        msghash[i].in[0] <== senderPubkeyX[i];
-        msghash[i].in[1] <== senderPubkeyY[i];
-        msghash[i].in[2] <== receiverPubkeyX[i];
-        msghash[i].in[3] <== receiverPubkeyY[i];
+        msghash[i].in[0] <== senderPubKeyX[i];
+        msghash[i].in[1] <== senderPubKeyY[i];
+        msghash[i].in[2] <== receiverPubKeyX[i];
+        msghash[i].in[3] <== receiverPubKeyY[i];
         msghash[i].in[4] <== 0;
         msghash[i].in[5] <== amount[i];
         msghash[i].k <== 6;
@@ -62,8 +62,8 @@ template Main(D, d) {
         // check signature
         signatureCheck[i] = EdDSAMiMCVerifier();
         signatureCheck[i].enabled <== 1;
-        signatureCheck[i].Ax <== senderPubkeyX[i];
-        signatureCheck[i].Ay <== senderPubkeyY[i];
+        signatureCheck[i].Ax <== senderPubKeyX[i];
+        signatureCheck[i].Ay <== senderPubKeyY[i];
         signatureCheck[i].S <== S[i];
         signatureCheck[i].R8x <== R8X[i];
         signatureCheck[i].R8y <== R8Y[i];
@@ -90,8 +90,8 @@ template Main(D, d) {
     component existSubTreeHash[D_d];
     for (var i = 0; i < D_d ; i++) {
         existSubTreeHash[i] = MultiMiMC7(2, 91);
-        existSubTreeHash[i].in[0] <== proofExistEmptySubTree[i] + proofPosExistEmptySubTree[i] * (((i == 0) ? hash0List[2] : existSubTreeHash[i-1].out) - proofExistEmptySubTree[i]);
-        existSubTreeHash[i].in[1] <== ((i == 0) ? hash0List[2] : existSubTreeHash[i-1].out) + proofPosExistEmptySubTree[i] * (proofExistEmptySubTree[i] - ((i == 0) ? hash0List[2] : existSubTreeHash[i-1].out));
+        existSubTreeHash[i].in[0] <== proofEmptyTree[i] + proofPosEmptyTree[i] * (((i == 0) ? hash0List[2] : existSubTreeHash[i-1].out) - proofEmptyTree[i]);
+        existSubTreeHash[i].in[1] <== ((i == 0) ? hash0List[2] : existSubTreeHash[i-1].out) + proofPosEmptyTree[i] * (proofEmptyTree[i] - ((i == 0) ? hash0List[2] : existSubTreeHash[i-1].out));
         existSubTreeHash[i].k <== 2;
     }
     existSubTreeHash[D_d-1].out === oldAccountRoot;
@@ -100,8 +100,8 @@ template Main(D, d) {
     component newAccountRootHash[D_d];
     for (var i = 0; i < D_d ; i++) {
         newAccountRootHash[i] = MultiMiMC7(2, 91);
-        newAccountRootHash[i].in[0] <== proofExistEmptySubTree[i] + proofPosExistEmptySubTree[i] * (((i == 0) ? registerAccountRoot : newAccountRootHash[i-1].out) - proofExistEmptySubTree[i]);
-        newAccountRootHash[i].in[1] <== ((i == 0) ? registerAccountRoot : newAccountRootHash[i-1].out) + proofPosExistEmptySubTree[i] * (proofExistEmptySubTree[i] - ((i == 0) ? registerAccountRoot : newAccountRootHash[i-1].out));
+        newAccountRootHash[i].in[0] <== proofEmptyTree[i] + proofPosEmptyTree[i] * (((i == 0) ? registerAccountRoot : newAccountRootHash[i-1].out) - proofEmptyTree[i]);
+        newAccountRootHash[i].in[1] <== ((i == 0) ? registerAccountRoot : newAccountRootHash[i-1].out) + proofPosEmptyTree[i] * (proofEmptyTree[i] - ((i == 0) ? registerAccountRoot : newAccountRootHash[i-1].out));
         newAccountRootHash[i].k <== 2;
     }
     // newAccountRootHash[D_d-1].out === newAccountRoot;

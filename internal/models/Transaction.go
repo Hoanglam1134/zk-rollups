@@ -88,8 +88,35 @@ func ToListAccounts(txs []*Transaction) []*Account {
 	return accounts
 }
 
-func (tx *TransactionTree) GetRoot() *big.Int {
-	return tx.Node[0]
+func (txTree *TransactionTree) GetRoot() *big.Int {
+	return txTree.Node[0]
+}
+
+func (txTree *TransactionTree) GetProof(idx int) ([]*big.Int, []int) {
+	proof := make([]*big.Int, 0)
+	proofPos := make([]int, 0)
+	for idx > 0 {
+		if idx%2 == 0 {
+			proof = append(proof, txTree.Node[idx-1])
+			proofPos = append(proofPos, 0)
+		} else {
+			proof = append(proof, txTree.Node[idx+1])
+			proofPos = append(proofPos, 1)
+		}
+		idx = (idx - 1) / 2
+	}
+	return proof, proofPos
+}
+
+func (txTree *TransactionTree) GetProofAll() ([][]*big.Int, [][]int) {
+	proofs := make([][]*big.Int, 0)
+	proofsPos := make([][]int, 0)
+	for i := 3; i < 3+len(txTree.Node); i++ { // index must be start at 3 (leaf node index)
+		proof, proofPos := txTree.GetProof(i)
+		proofs = append(proofs, proof)
+		proofsPos = append(proofsPos, proofPos)
+	}
+	return proofs, proofsPos
 }
 
 func NewTreeFromTransactions(txs []*Transaction) *TransactionTree {

@@ -213,6 +213,8 @@ contract Middleware {
         uint256 s
     ) public {
         emit eWithdraw(fromX, fromY, toX, toY, amount, r8x, r8y, s);
+        // layer 2 roll up
+        // layer 2 call
     }
 
     function update() private {}

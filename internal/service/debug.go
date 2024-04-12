@@ -3,11 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"golang.org/x/exp/maps"
 	"log"
 	"math/big"
 	"zk-rollups/api"
 	"zk-rollups/helpers"
 	"zk-rollups/internal/models"
+	"zk-rollups/utils"
 )
 
 func (service *Service) GetAccountsStatus(ctx context.Context, req *api.GetAccountsStatusRequest) (*api.GetAccountsStatusResponse, error) {
@@ -17,7 +20,7 @@ func (service *Service) GetAccountsStatus(ctx context.Context, req *api.GetAccou
 		if value != nil {
 			res[index] = &api.GetAccountsStatusResponse_Account{
 				Id:        int32(value.Index),
-				PublicKey: value.GetPubkeyShow(),
+				PublicKey: value.GetPubKeyShow(),
 				Balance:   value.Balance.String(),
 			}
 		}
@@ -52,10 +55,21 @@ func (service *Service) DebugDeposit(ctx context.Context, request *api.DebugDepo
 		return nil, err
 	}
 
+	err = service.deposit(auth, privateKeyString, request.GetTransaction().GetAmount())
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.DebugDepositResponse{
+		Res: "Success",
+	}, nil
+}
+
+func (service *Service) deposit(auth *bind.TransactOpts, privateKeyString string, amountInt64 int64) error {
 	// create user from private key
 	account, privateKey := models.CreateNewAccount(privateKeyString)
 
-	amount := big.NewInt(request.GetTransaction().GetAmount())
+	amount := big.NewInt(amountInt64)
 	tx := &models.Transaction{
 		FromX:  account.PubX,
 		FromY:  account.PubY,
@@ -70,15 +84,13 @@ func (service *Service) DebugDeposit(ctx context.Context, request *api.DebugDepo
 	// sign transaction
 	tx.SignTx(privateKey)
 
-	_, err = service.middlewareInstance.Deposit(auth, tx.FromX, tx.FromY, tx.ToX, tx.ToY, amount, tx.R8X, tx.R8Y, tx.S)
+	_, err := service.middlewareInstance.Deposit(auth, tx.FromX, tx.FromY, tx.ToX, tx.ToY, amount, tx.R8X, tx.R8Y, tx.S)
 	if err != nil {
 		fmt.Println("[DebugDeposit] error call deposit middleware contract")
 		log.Fatal(err)
-		return nil, err
+		return err
 	}
-	return &api.DebugDepositResponse{
-		Res: "Success",
-	}, nil
+	return nil
 }
 
 func (service *Service) DebugTransfer(ctx context.Context, request *api.DebugTransferRequest) (*api.DebugTransferResponse, error) {
@@ -180,6 +192,41 @@ func (service *Service) DebugWithdraw(ctx context.Context, request *api.DebugWit
 		return nil, err
 	}
 	return &api.DebugWithdrawResponse{
+		Res: "Success",
+	}, nil
+}
+
+func (service *Service) DebugFullFlowRegister(ctx context.Context, request *api.DebugFullFlowRegisterRequest) (*api.DebugFullFlowRegisterResponse, error) {
+	fmt.Println("Service: DebugFullFlowRegister")
+
+	var (
+		addressesFile = helpers.LoadJsonAccounts()
+		client        = service.client
+	)
+
+	for i := request.GetStartId(); i < request.GetStartId()+utils.RollupSize; i++ {
+		// load auth to present a contract call
+		authFrom, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+			AddressesFile: addressesFile,
+			Index:         i,
+		})
+		if err != nil {
+			fmt.Println("[DebugFullFlowRegister] error when load auth from to present a deposit")
+			log.Fatal(err)
+			return nil, err
+		}
+
+		privateKeyString := utils.GetAt(maps.Values(addressesFile.PrivateKeysMap), int(i))
+		fmt.Println("privateKeyString: ", privateKeyString)
+
+		// deposit
+		err = service.deposit(authFrom, privateKeyString, request.GetAmount())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &api.DebugFullFlowRegisterResponse{
 		Res: "Success",
 	}, nil
 }

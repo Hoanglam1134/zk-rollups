@@ -34,7 +34,7 @@ const (
 // Path to Input
 const (
 	BasePath      = "./circuits"
-	InputFileName = "input.json"
+	InputFileName = "/input.json"
 	PathRegister  = BasePath + "/deposit_register" + InputFileName
 	PathExistence = BasePath + "/deposit_existence" + InputFileName
 	PathTransfer  = BasePath + "/transfer" + InputFileName

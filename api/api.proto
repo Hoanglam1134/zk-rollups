@@ -33,6 +33,13 @@ service LayerTwoService {
       body: "*"
     };
   }
+
+  rpc DebugFullFlowRegister(DebugFullFlowRegisterRequest) returns (DebugFullFlowRegisterResponse) {
+    option (google.api.http) = {
+      post: "/debug/full-register"
+      body: "*"
+    };
+  }
 }
 
 message GetAccountsStatusRequest {
@@ -77,4 +84,13 @@ message DebugWithdrawRequest {
 message DebugWithdrawResponse {
   string res = 1;
   string balance = 2;
+}
+
+message DebugFullFlowRegisterRequest {
+  int32 start_id = 1;
+  int64 amount = 2;
+}
+
+message DebugFullFlowRegisterResponse {
+  string res = 1;
 }

@@ -16,8 +16,8 @@ import (
 )
 
 type AddressesFile struct {
-	AddressesMap   map[string]string `json:"addresses"`
-	PrivateKeysMap map[string]string `json:"private_keys"`
+	AddressesMap   map[string]string `json:"addresses"`    // map address to address
+	PrivateKeysMap map[string]string `json:"private_keys"` // map address to private key
 }
 
 func LoadJsonAccounts() AddressesFile {

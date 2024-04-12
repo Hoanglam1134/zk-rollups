@@ -32,7 +32,7 @@ func (a *Account) GetHash() *big.Int {
 	return utils.MultiMiMC7BigInt(a.PubX, a.PubY, a.Nonce, a.Balance)
 }
 
-func (a *Account) GetPubkeyShow() string {
+func (a *Account) GetPubKeyShow() string {
 	pk := babyjub.PublicKey{
 		X: a.PubX,
 		Y: a.PubY,
