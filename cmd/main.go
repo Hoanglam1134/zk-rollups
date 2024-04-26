@@ -11,6 +11,7 @@ import (
 	"os"
 	"zk-rollups/api"
 	"zk-rollups/contracts/middleware_contract"
+	"zk-rollups/helpers"
 	"zk-rollups/internal/models"
 	"zk-rollups/internal/service"
 
@@ -36,17 +37,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	accountTree, instance, err := DeploySmartContract(client)
+	// load json file accounts
+	addressesFile := helpers.LoadJsonAccounts()
+
+	accountTree, instance, err := DeploySmartContract(client, addressesFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("Deploy smart contracts successfully")
-	if err = RunServer(client, accountTree, instance); err != nil {
+	if err = RunServer(client, accountTree, instance, addressesFile); err != nil {
 		os.Exit(1)
 	}
 }
 
-func RunServer(client *ethclient.Client, accountTree *models.AccountTree, middlewareInstance *middleware_contract.MiddlewareContract) error {
+func RunServer(client *ethclient.Client, accountTree *models.AccountTree, middlewareInstance *middleware_contract.MiddlewareContract, addressFile helpers.AddressesFile) error {
 	listen, err := net.Listen("tcp", GrpcAddress)
 	if err != nil {
 		return err
@@ -54,7 +58,7 @@ func RunServer(client *ethclient.Client, accountTree *models.AccountTree, middle
 
 	// register service
 	grpcServer := grpc.NewServer()
-	api.RegisterLayerTwoServiceServer(grpcServer, service.NewService(client, accountTree, middlewareInstance))
+	api.RegisterLayerTwoServiceServer(grpcServer, service.NewService(client, accountTree, middlewareInstance, addressFile))
 
 	// start server: gRPC
 	go func() {

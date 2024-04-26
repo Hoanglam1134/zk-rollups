@@ -13,15 +13,10 @@ import (
 
 // ConvertToBytes32 convert []byte to [32]byte
 // this function also add padding to the end of []byte if it is not enough
-// TODO: need check valid
 func ConvertToBytes32(data []byte) [32]byte {
 	var src [32]byte
 	copy(src[:], append(data, make([]byte, 32-len(data))...))
 	return src
-}
-
-func ConvertToBytes(data [32]byte) []byte {
-	return data[:]
 }
 
 // MiMCHash calculate hash of inputs
@@ -34,7 +29,6 @@ func MiMCHash(inputs ...[]byte) *big.Int {
 	return mimc7.HashBytes(res)
 }
 
-// NguyenHiu's code
 func MultiMiMC7BigInt(input ...*big.Int) *big.Int {
 	// key is zero
 	ret, err := mimc7.Hash(input, big.NewInt(0))
@@ -79,13 +73,26 @@ func PrintJson(data interface{}, fileName string) error {
 	return nil
 }
 
-func Priv2Pub(privKey string) *babyjub.PublicKey {
+func Private2Public(privateKeyInput string) (*babyjub.PublicKey, *babyjub.PrivateKey) {
+	// remove 0x from hex string if exist
+	if len(privateKeyInput) > 2 && privateKeyInput[:2] == "0x" {
+		privateKeyInput = privateKeyInput[2:]
+	}
+
 	// Convert hex string to bytes
-	privateKeyBytes := common.FromHex(privKey)
+	privateKeyBytes := common.FromHex(privateKeyInput)
 
 	// Create PrivateKey from bytes
 	var privateKey babyjub.PrivateKey
 	copy(privateKey[:], privateKeyBytes)
 
-	return privateKey.Public()
+	return privateKey.Public(), &privateKey
+}
+
+func PublicKeyToString(pub *babyjub.PublicKey) string {
+	pk := babyjub.PublicKey{
+		X: pub.Point().X,
+		Y: pub.Point().Y,
+	}
+	return pk.String()
 }

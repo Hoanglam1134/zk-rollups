@@ -26,17 +26,15 @@ var (
 	WithdrawTxs         []*models.Transaction
 )
 
-func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middleware_contract.MiddlewareContract, error) {
+func DeploySmartContract(client *ethclient.Client, addressFile helpers.AddressesFile) (*models.AccountTree, *middleware_contract.MiddlewareContract, error) {
 	// ================ Init Account Tree ================
 	accountTree := models.NewAccountTree()
 
 	// ================== Deploy contracts ==================
-	// load json file accounts
-	addressesFile := helpers.LoadJsonAccounts()
 
 	// load Auth to deploy contracts
-	auth0, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
-		AddressesFile: addressesFile,
+	auth0, _, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+		AddressesFile: addressFile,
 		Index:         0,
 	})
 	if err != nil {
@@ -45,8 +43,8 @@ func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middle
 	}
 	fmt.Println("Loaded auth0")
 
-	auth1, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
-		AddressesFile: addressesFile,
+	auth1, _, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+		AddressesFile: addressFile,
 		Index:         1,
 	})
 	if err != nil {
@@ -70,7 +68,7 @@ func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middle
 
 	// Middleware contract
 	initialAccountRoot := new(big.Int).SetInt64(0)
-	middlewareAddress, middTx, middlewareInstance, err := middleware_contract.DeployMiddlewareContract(auth1, client, mimcAddress, initialAccountRoot)
+	middlewareAddress, middlewareTx, middlewareInstance, err := middleware_contract.DeployMiddlewareContract(auth1, client, mimcAddress, initialAccountRoot)
 
 	if err != nil {
 		fmt.Println("error deploy Middleware contracts")
@@ -79,7 +77,7 @@ func DeploySmartContract(client *ethclient.Client) (*models.AccountTree, *middle
 
 	fmt.Println("Success, Middleware contract address: ", middlewareAddress.Hex())
 	_ = middlewareInstance
-	_ = middTx
+	_ = middlewareTx
 	_ = middlewareAddress
 
 	//================== Subscribing Log ==================

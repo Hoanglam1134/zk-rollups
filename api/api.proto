@@ -51,6 +51,7 @@ message GetAccountsStatusResponse {
     int32 id = 1;
     string publicKey = 2;
     string balance = 3;
+    string l1_balance = 4;
   }
   repeated Account accounts = 1;
 }

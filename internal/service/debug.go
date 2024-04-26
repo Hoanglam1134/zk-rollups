@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"golang.org/x/exp/maps"
+	"github.com/ethereum/go-ethereum/common"
 	"log"
+	"math"
 	"math/big"
 	"zk-rollups/api"
 	"zk-rollups/helpers"
@@ -15,16 +16,35 @@ import (
 
 func (service *Service) GetAccountsStatus(ctx context.Context, req *api.GetAccountsStatusRequest) (*api.GetAccountsStatusResponse, error) {
 	fmt.Println("Service: GetAccountsStatus")
-	res := make([]*api.GetAccountsStatusResponse_Account, 10)
-	for index, value := range service.accountTree.Arr {
-		if value != nil {
-			res[index] = &api.GetAccountsStatusResponse_Account{
+	// #1 Load L1-Balance
+	// load json file accounts
+	mapL1Balance := make(map[string]*big.Int)
+	for _, address := range service.addressFile.AddressesSlice {
+		account := common.HexToAddress(address)
+		balance, err := service.client.BalanceAt(context.Background(), account, nil)
+		if err != nil {
+			fmt.Println("error when get balance of contract")
+			return nil, err
+		}
+		ethVal := new(big.Int).Quo(balance, big.NewInt(int64(math.Pow10(18))))
+		privateKey := service.addressFile.PrivateKeysMap[address]
+		publicKey, _ := utils.Private2Public(privateKey)
+		publicKeyShow := utils.PublicKeyToString(publicKey)
+		mapL1Balance[publicKeyShow] = ethVal
+	}
+	// #2 Load L2-Balance
+	res := make([]*api.GetAccountsStatusResponse_Account, 0, utils.AccountSize)
+	for _, value := range service.accountTree.Arr {
+		fmt.Println("index: ", value.Index)
+		if value.Index != utils.MinusOne {
+			fmt.Println("public key: ", value.GetPubKeyShow())
+			res = append(res, &api.GetAccountsStatusResponse_Account{
 				Id:        int32(value.Index),
 				PublicKey: value.GetPubKeyShow(),
 				Balance:   value.Balance.String(),
-			}
-		}
-		if index > 4 {
+				L1Balance: mapL1Balance[value.GetPubKeyShow()].String(),
+			})
+		} else {
 			break
 		}
 	}
@@ -39,14 +59,13 @@ func (service *Service) GetAccountsStatus(ctx context.Context, req *api.GetAccou
 func (service *Service) DebugDeposit(ctx context.Context, request *api.DebugDepositRequest) (*api.DebugDepositResponse, error) {
 	fmt.Printf("Service: DebugDeposit: %v, amount: %v", request.GetTransaction().GetFrom(), request.GetTransaction().GetAmount())
 	var (
-		addressesFile    = helpers.LoadJsonAccounts()
 		client           = service.client
 		privateKeyString = request.GetTransaction().GetFrom()
 	)
 
 	// load auth to present a contract call
-	auth, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
-		AddressesFile: addressesFile,
+	auth, _, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+		AddressesFile: service.addressFile,
 		PrivateKey:    privateKeyString,
 	})
 	if err != nil {
@@ -54,7 +73,8 @@ func (service *Service) DebugDeposit(ctx context.Context, request *api.DebugDepo
 		log.Fatal(err)
 		return nil, err
 	}
-
+	// set value for auth
+	auth.Value = big.NewInt(request.GetTransaction().GetAmount() * 1e18)
 	err = service.deposit(auth, privateKeyString, request.GetTransaction().GetAmount())
 	if err != nil {
 		return nil, err
@@ -98,15 +118,14 @@ func (service *Service) DebugTransfer(ctx context.Context, request *api.DebugTra
 		request.GetTransaction().GetAmount(), request.GetTransaction().GetTo())
 
 	var (
-		addressesFile        = helpers.LoadJsonAccounts()
 		client               = service.client
 		privateKeyStringFrom = request.GetTransaction().GetFrom()
 		privateKeyStringTo   = request.GetTransaction().GetTo()
 	)
 
 	// load auth to present a contract call
-	authFrom, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
-		AddressesFile: addressesFile,
+	authFrom, _, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+		AddressesFile: service.addressFile,
 		PrivateKey:    privateKeyStringFrom,
 	})
 	if err != nil {
@@ -151,14 +170,13 @@ func (service *Service) DebugWithdraw(ctx context.Context, request *api.DebugWit
 		request.GetTransaction().GetAmount())
 
 	var (
-		addressesFile    = helpers.LoadJsonAccounts()
 		client           = service.client
 		privateKeyString = request.GetTransaction().GetFrom()
 	)
 
 	// load auth to present a contract call
-	authFrom, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
-		AddressesFile: addressesFile,
+	authFrom, _, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+		AddressesFile: service.addressFile,
 		PrivateKey:    privateKeyString,
 	})
 	if err != nil {
@@ -200,14 +218,13 @@ func (service *Service) DebugFullFlowRegister(ctx context.Context, request *api.
 	fmt.Println("Service: DebugFullFlowRegister")
 
 	var (
-		addressesFile = helpers.LoadJsonAccounts()
-		client        = service.client
+		client = service.client
 	)
 
 	for i := request.GetStartId(); i < request.GetStartId()+utils.RollupSize; i++ {
 		// load auth to present a contract call
-		authFrom, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
-			AddressesFile: addressesFile,
+		authFrom, privateKeyString, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+			AddressesFile: service.addressFile,
 			Index:         i,
 		})
 		if err != nil {
@@ -215,10 +232,8 @@ func (service *Service) DebugFullFlowRegister(ctx context.Context, request *api.
 			log.Fatal(err)
 			return nil, err
 		}
-
-		privateKeyString := utils.GetAt(maps.Values(addressesFile.PrivateKeysMap), int(i))
-		fmt.Println("privateKeyString: ", privateKeyString)
-
+		fmt.Println("index: ", i)
+		fmt.Println("private key: ", privateKeyString)
 		// deposit
 		err = service.deposit(authFrom, privateKeyString, request.GetAmount())
 		if err != nil {

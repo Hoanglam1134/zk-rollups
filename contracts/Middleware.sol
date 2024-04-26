@@ -105,16 +105,16 @@ contract Middleware {
         uint256 r8y,
         uint256 s
     ) public payable {
-        // require(uint(amount) * 1e18 == msg.value, "amount*1e18 != msg.value");
+        require(uint(amount) * 1e18 > msg.value, "amount*1e18 != msg.value");
         address receiverAddress = address(
             bytes20((keccak256(abi.encodePacked(toX, toY))) << 96)
         );
 
         if (existedPubkeys[receiverAddress]) {
-            _depositExistence(fromX, fromY, toX, toY, amount, r8x, r8y, s);
+            _depositExistence(fromX, fromY, toX, toY, msg.value/1e18, r8x, r8y, s);
         } else {
             existedPubkeys[receiverAddress] = true;
-            _depositRegister(fromX, fromY, toX, toY, amount, r8x, r8y, s);
+            _depositRegister(fromX, fromY, toX, toY, msg.value/1e18, r8x, r8y, s);
         }
     }
 
@@ -137,7 +137,7 @@ contract Middleware {
         accountProperties[1] = toY;
         accountProperties[2] = amount;
         accountProperties[3] = 0;
-        uint256 newAccountHash = uint256(mimcMultiHash(accountProperties));
+//        uint256 newAccountHash = uint256(mimcMultiHash(accountProperties));
 
         // create a new tx
         uint256[] memory txPropertes = new uint256[](6);
@@ -147,7 +147,7 @@ contract Middleware {
         txPropertes[3] = toY;
         txPropertes[4] = 0;
         txPropertes[5] = amount;
-        uint256 newTxHash = uint256(mimcMultiHash(txPropertes));
+//        uint256 newTxHash = uint256(mimcMultiHash(txPropertes));
 
         emit eDepositRegister(fromX, fromY, toX, toY, amount, r8x, r8y, s);
 
@@ -214,10 +214,12 @@ contract Middleware {
     ) public {
         emit eWithdraw(fromX, fromY, toX, toY, amount, r8x, r8y, s);
         // layer 2 roll up
-        // layer 2 call
+        // send ether to the receiver
+        address receiverAddress = address(
+            bytes20((keccak256(abi.encodePacked(toX, toY))) << 96)
+        );
+        transferEther(payable(receiverAddress), amount);
     }
-
-    function update() private {}
 
     function mimcMultiHash(uint[] memory arr) public view returns (uint) {
         uint r = 0;
@@ -228,5 +230,12 @@ contract Middleware {
                 prime;
         }
         return r;
+    }
+
+    function transferEther(address payable recipient, uint256 amount) public payable{
+        require(amount <= address(this).balance, "Insufficient balance");
+
+        (bool callSuccess, ) = recipient.call{value: amount}("");
+        require(callSuccess, "Transfer failed");
     }
 }

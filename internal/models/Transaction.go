@@ -111,7 +111,8 @@ func (txTree *TransactionTree) GetProof(idx int) ([]*big.Int, []int) {
 func (txTree *TransactionTree) GetProofAll() ([][]*big.Int, [][]int) {
 	proofs := make([][]*big.Int, 0)
 	proofsPos := make([][]int, 0)
-	for i := 3; i < 3+len(txTree.Node); i++ { // index must be start at 3 (leaf node index)
+	firstLeafIndex := len(txTree.Node) / 2
+	for i := firstLeafIndex; i < len(txTree.Node); i++ {
 		proof, proofPos := txTree.GetProof(i)
 		proofs = append(proofs, proof)
 		proofsPos = append(proofsPos, proofPos)

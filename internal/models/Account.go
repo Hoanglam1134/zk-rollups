@@ -2,7 +2,6 @@ package models
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"zk-rollups/utils"
 
@@ -40,8 +39,7 @@ func (a *Account) GetPubKeyShow() string {
 	return pk.String()
 }
 
-// ------------------------------------------------------------------------
-
+// NewAccountTree creates a new AccountTree with the default height
 func NewAccountTree() *AccountTree {
 	tree := new(AccountTree)
 	// We can change the height of the Tree here
@@ -54,7 +52,7 @@ func NewAccountTree() *AccountTree {
 	for i := 0; i < utils.AccountSize; i++ {
 		indexNumber := i + utils.AccountSize - 1
 		tree.Arr[i] = &Account{
-			Index:   0,
+			Index:   -1,
 			PubX:    bigInZero,
 			PubY:    bigInZero,
 			Nonce:   bigInZero,
@@ -262,24 +260,12 @@ func (tree *AccountTree) UpdateAccount(acc *Account) int {
 }
 
 func CreateNewAccount(privateKeyInput string) (*Account, babyjub.PrivateKey) {
-	// remove 0x from hex string if exist
-	if len(privateKeyInput) > 2 && privateKeyInput[:2] == "0x" {
-		privateKeyInput = privateKeyInput[2:]
-	}
-
-	// Convert hex string to bytes
-	privateKeyBytes := common.FromHex(privateKeyInput)
-
-	// Create PrivateKey from bytes
-	var privateKey babyjub.PrivateKey
-	copy(privateKey[:], privateKeyBytes)
-
-	publicKey := privateKey.Public()
+	publicKey, privateKey := utils.Private2Public(privateKeyInput)
 	return &Account{
 		Index:   -1, // which means this account is not in the tree (or free account, not set up yet)
 		PubX:    publicKey.Point().X,
 		PubY:    publicKey.Point().Y,
 		Nonce:   big.NewInt(0),
 		Balance: big.NewInt(0),
-	}, privateKey
+	}, *privateKey
 }

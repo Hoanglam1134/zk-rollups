@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 	"log"
 	"math/big"
 	"os"
@@ -16,8 +17,10 @@ import (
 )
 
 type AddressesFile struct {
-	AddressesMap   map[string]string `json:"addresses"`    // map address to address
-	PrivateKeysMap map[string]string `json:"private_keys"` // map address to private key
+	AddressesMap    map[string]string `json:"addresses"`    // map address to address
+	PrivateKeysMap  map[string]string `json:"private_keys"` // map address to private key
+	AddressesSlice  []string          `json:"addresses_slice"`
+	PrivateKeySlice []string          `json:"private_key_slice"`
 }
 
 func LoadJsonAccounts() AddressesFile {
@@ -34,6 +37,12 @@ func LoadJsonAccounts() AddressesFile {
 		fmt.Println("error unmarshal json")
 		return addressesFile
 	}
+
+	// enrich to slice
+	addressesFile.AddressesSlice = maps.Values(addressesFile.AddressesMap)
+	addressesFile.PrivateKeySlice = maps.Values(addressesFile.PrivateKeysMap)
+	slices.Sort(addressesFile.AddressesSlice)
+	slices.Sort(addressesFile.PrivateKeySlice)
 	return addressesFile
 }
 
@@ -43,20 +52,18 @@ type LoadAccountsOption struct {
 	PrivateKey    string
 }
 
-func LoadAuth(client *ethclient.Client, option LoadAccountsOption) (*bind.TransactOpts, error) {
+func LoadAuth(client *ethclient.Client, option LoadAccountsOption) (*bind.TransactOpts, string, error) {
 	// get chain id
 	chainID, err := client.ChainID(context.Background())
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	privateKey := option.PrivateKey
 
 	if option.PrivateKey == utils.EmptyString {
 		// if PrivateKey is empty, use index to set private key
-		pubKeys := maps.Keys(option.AddressesFile.AddressesMap)
-		userPubKey := pubKeys[option.Index]
-		privateKey = option.AddressesFile.PrivateKeysMap[userPubKey]
+		privateKey = option.AddressesFile.PrivateKeySlice[option.Index]
 	}
 
 	// remove 0x if it exists
@@ -90,14 +97,11 @@ func LoadAuth(client *ethclient.Client, option LoadAccountsOption) (*bind.Transa
 	// get signer
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKeyECDSA, chainID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(int64(0)) // in wei
 	auth.GasLimit = uint64(3000000)   // in units
 	auth.GasPrice = gasPrice          // in wei
-	if err != nil {
-		return nil, err
-	}
-	return auth, nil
+	return auth, privateKey, nil
 }
