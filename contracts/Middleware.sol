@@ -105,16 +105,16 @@ contract Middleware {
         uint256 r8y,
         uint256 s
     ) public payable {
-        require(uint(amount) * 1e18 > msg.value, "amount*1e18 != msg.value");
+        require(uint(amount) * 1e18 <= msg.value, "amount*1e18 != msg.value");
         address receiverAddress = address(
             bytes20((keccak256(abi.encodePacked(toX, toY))) << 96)
         );
 
         if (existedPubkeys[receiverAddress]) {
-            _depositExistence(fromX, fromY, toX, toY, msg.value/1e18, r8x, r8y, s);
+            _depositExistence(fromX, fromY, toX, toY, amount, r8x, r8y, s);
         } else {
             existedPubkeys[receiverAddress] = true;
-            _depositRegister(fromX, fromY, toX, toY, msg.value/1e18, r8x, r8y, s);
+            _depositRegister(fromX, fromY, toX, toY, amount, r8x, r8y, s);
         }
     }
 

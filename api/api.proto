@@ -40,6 +40,13 @@ service LayerTwoService {
       body: "*"
     };
   }
+
+  rpc DebugFullFlowExistence(DebugFullFlowExistenceRequest) returns (DebugFullFlowExistenceResponse) {
+    option (google.api.http) = {
+      post: "/debug/full-existence"
+      body: "*"
+    };
+  }
 }
 
 message GetAccountsStatusRequest {
@@ -84,7 +91,6 @@ message DebugWithdrawRequest {
 
 message DebugWithdrawResponse {
   string res = 1;
-  string balance = 2;
 }
 
 message DebugFullFlowRegisterRequest {
@@ -93,5 +99,14 @@ message DebugFullFlowRegisterRequest {
 }
 
 message DebugFullFlowRegisterResponse {
+  string res = 1;
+}
+
+message DebugFullFlowExistenceRequest {
+  int32 start_id = 1;
+  int64 amount = 2;
+}
+
+message DebugFullFlowExistenceResponse {
   string res = 1;
 }

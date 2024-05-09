@@ -232,8 +232,7 @@ func (service *Service) DebugFullFlowRegister(ctx context.Context, request *api.
 			log.Fatal(err)
 			return nil, err
 		}
-		fmt.Println("index: ", i)
-		fmt.Println("private key: ", privateKeyString)
+		authFrom.Value = big.NewInt(request.GetAmount() * 1e18)
 		// deposit
 		err = service.deposit(authFrom, privateKeyString, request.GetAmount())
 		if err != nil {
@@ -242,6 +241,39 @@ func (service *Service) DebugFullFlowRegister(ctx context.Context, request *api.
 	}
 
 	return &api.DebugFullFlowRegisterResponse{
+		Res: "Success",
+	}, nil
+}
+
+func (service *Service) DebugFullFlowExistence(ctx context.Context, request *api.DebugFullFlowExistenceRequest) (*api.DebugFullFlowExistenceResponse, error) {
+	fmt.Println("Service: DebugFullFlowExistence")
+
+	var (
+		client = service.client
+	)
+
+	for i := request.GetStartId(); i < request.GetStartId()+utils.RollupSize; i++ {
+		// load auth to present a contract call
+		authFrom, privateKeyString, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+			AddressesFile: service.addressFile,
+			Index:         i,
+		})
+		if err != nil {
+			fmt.Println("[DebugFullFlowExistence] error when load auth from to present a deposit")
+			log.Fatal(err)
+			return nil, err
+		}
+		fmt.Println("index: ", i)
+		fmt.Println("private key: ", privateKeyString)
+		authFrom.Value = big.NewInt(request.GetAmount() * 1e18)
+		// deposit
+		err = service.deposit(authFrom, privateKeyString, request.GetAmount())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &api.DebugFullFlowExistenceResponse{
 		Res: "Success",
 	}, nil
 }
