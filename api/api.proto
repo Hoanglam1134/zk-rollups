@@ -34,16 +34,23 @@ service LayerTwoService {
     };
   }
 
-  rpc DebugFullFlowRegister(DebugFullFlowRegisterRequest) returns (DebugFullFlowRegisterResponse) {
+  rpc DebugFullFlowDeposit(DebugFullFlowDepositRequest) returns (DebugFullFlowDepositResponse) {
     option (google.api.http) = {
-      post: "/debug/full-register"
+      post: "/debug/full-deposit"
       body: "*"
     };
   }
 
-  rpc DebugFullFlowExistence(DebugFullFlowExistenceRequest) returns (DebugFullFlowExistenceResponse) {
+  rpc DebugFullFlowTransfer(DebugFullFlowTransferRequest) returns (DebugFullFlowTransferResponse) {
     option (google.api.http) = {
-      post: "/debug/full-existence"
+      post: "/debug/full-transfer"
+      body: "*"
+    };
+  }
+
+  rpc DebugFullFlowWithdraw(DebugFullFlowWithdrawRequest) returns (DebugFullFlowWithdrawResponse) {
+    option (google.api.http) = {
+      post: "/debug/full-withdraw"
       body: "*"
     };
   }
@@ -56,11 +63,12 @@ message GetAccountsStatusRequest {
 message GetAccountsStatusResponse {
   message Account {
     int32 id = 1;
-    string publicKey = 2;
+    string address = 2;
     string balance = 3;
     string l1_balance = 4;
   }
   repeated Account accounts = 1;
+  string contract_balance = 2;
 }
 
 message Transaction {
@@ -93,20 +101,29 @@ message DebugWithdrawResponse {
   string res = 1;
 }
 
-message DebugFullFlowRegisterRequest {
+message DebugFullFlowDepositRequest {
   int32 start_id = 1;
   int64 amount = 2;
 }
 
-message DebugFullFlowRegisterResponse {
+message DebugFullFlowDepositResponse {
   string res = 1;
 }
 
-message DebugFullFlowExistenceRequest {
+message DebugFullFlowTransferRequest {
   int32 start_id = 1;
   int64 amount = 2;
 }
 
-message DebugFullFlowExistenceResponse {
+message DebugFullFlowTransferResponse {
+  string res = 1;
+}
+
+message DebugFullFlowWithdrawRequest {
+  int32 start_id = 1;
+  int64 amount = 2;
+}
+
+message DebugFullFlowWithdrawResponse {
   string res = 1;
 }

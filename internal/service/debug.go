@@ -27,29 +27,30 @@ func (service *Service) GetAccountsStatus(ctx context.Context, req *api.GetAccou
 			return nil, err
 		}
 		ethVal := new(big.Int).Quo(balance, big.NewInt(int64(math.Pow10(18))))
-		privateKey := service.addressFile.PrivateKeysMap[address]
-		publicKey, _ := utils.Private2Public(privateKey)
-		publicKeyShow := utils.PublicKeyToString(publicKey)
-		mapL1Balance[publicKeyShow] = ethVal
+		mapL1Balance[address] = ethVal
 	}
 	// #2 Load L2-Balance
 	res := make([]*api.GetAccountsStatusResponse_Account, 0, utils.AccountSize)
 	for _, value := range service.accountTree.Arr {
-		fmt.Println("index: ", value.Index)
 		if value.Index != utils.MinusOne {
-			fmt.Println("public key: ", value.GetPubKeyShow())
 			res = append(res, &api.GetAccountsStatusResponse_Account{
 				Id:        int32(value.Index),
-				PublicKey: value.GetPubKeyShow(),
+				Address:   value.EcdsaAddress,
 				Balance:   value.Balance.String(),
-				L1Balance: mapL1Balance[value.GetPubKeyShow()].String(),
+				L1Balance: mapL1Balance[value.EcdsaAddress].String(),
 			})
 		} else {
 			break
 		}
 	}
+	balance, err := service.middlewareInstance.GetBalance(nil)
+	if err != nil {
+		return nil, err
+	}
+	ethVal := new(big.Int).Quo(balance, big.NewInt(int64(math.Pow10(18))))
 	return &api.GetAccountsStatusResponse{
-		Accounts: res,
+		Accounts:        res,
+		ContractBalance: ethVal.String(),
 	}, nil
 }
 
@@ -113,6 +114,63 @@ func (service *Service) deposit(auth *bind.TransactOpts, privateKeyString string
 	return nil
 }
 
+func (service *Service) transfer(auth *bind.TransactOpts, fromPrivateKeyString, toPrivateKeyString string, amountInt64 int64) error {
+	// create user from private key
+	fromAccount, fromPrivateKey := models.CreateNewAccount(fromPrivateKeyString)
+	toAccount, _ := models.CreateNewAccount(toPrivateKeyString)
+
+	amount := big.NewInt(amountInt64)
+	tx := &models.Transaction{
+		FromX:  fromAccount.PubX,
+		FromY:  fromAccount.PubY,
+		ToX:    toAccount.PubX,
+		ToY:    toAccount.PubY,
+		Amount: amount,
+		Nonce:  fromAccount.Nonce,
+		R8X:    nil,
+		R8Y:    nil,
+		S:      nil,
+	}
+	// sign transaction
+	tx.SignTx(fromPrivateKey)
+
+	_, err := service.middlewareInstance.Transfer(auth, tx.FromX, tx.FromY, tx.ToX, tx.ToY, amount, tx.R8X, tx.R8Y, tx.S)
+	if err != nil {
+		fmt.Println("[DebugTransfer] error call transfer middleware contract")
+		log.Fatal(err)
+		return err
+	}
+	return nil
+}
+
+func (service *Service) withdraw(auth *bind.TransactOpts, privateKeyString string, amountInt64 int64) error {
+	// create user from private key - temporary account for debug only
+	account, privateKey := models.CreateNewAccount(privateKeyString)
+
+	amount := big.NewInt(amountInt64)
+	tx := &models.Transaction{
+		FromX:  account.PubX,
+		FromY:  account.PubY,
+		ToX:    account.PubX,
+		ToY:    account.PubY,
+		Amount: amount,
+		Nonce:  account.Nonce,
+		R8X:    nil,
+		R8Y:    nil,
+		S:      nil,
+	}
+	// sign transaction
+	tx.SignTx(privateKey)
+
+	_, err := service.middlewareInstance.Withdraw(auth, tx.FromX, tx.FromY, tx.ToX, tx.ToY, amount, tx.R8X, tx.R8Y, tx.S)
+	if err != nil {
+		fmt.Println("[DebugWithdraw] error call withdraw middleware contract")
+		log.Fatal(err)
+		return err
+	}
+	return nil
+}
+
 func (service *Service) DebugTransfer(ctx context.Context, request *api.DebugTransferRequest) (*api.DebugTransferResponse, error) {
 	fmt.Printf("Service: DebugTransfer: from %v, amount: %v, to %v", request.GetTransaction().GetFrom(),
 		request.GetTransaction().GetAmount(), request.GetTransaction().GetTo())
@@ -129,7 +187,7 @@ func (service *Service) DebugTransfer(ctx context.Context, request *api.DebugTra
 		PrivateKey:    privateKeyStringFrom,
 	})
 	if err != nil {
-		fmt.Println("[DebugTransfer] error when load auth from to present a deposit")
+		fmt.Println("[DebugTransfer] error when load auth from to present a transfer")
 		log.Fatal(err)
 		return nil, err
 	}
@@ -214,8 +272,8 @@ func (service *Service) DebugWithdraw(ctx context.Context, request *api.DebugWit
 	}, nil
 }
 
-func (service *Service) DebugFullFlowRegister(ctx context.Context, request *api.DebugFullFlowRegisterRequest) (*api.DebugFullFlowRegisterResponse, error) {
-	fmt.Println("Service: DebugFullFlowRegister")
+func (service *Service) DebugFullFlowDeposit(ctx context.Context, request *api.DebugFullFlowDepositRequest) (*api.DebugFullFlowDepositResponse, error) {
+	fmt.Println("Service: DebugFullFlowDeposit")
 
 	var (
 		client = service.client
@@ -228,10 +286,11 @@ func (service *Service) DebugFullFlowRegister(ctx context.Context, request *api.
 			Index:         i,
 		})
 		if err != nil {
-			fmt.Println("[DebugFullFlowRegister] error when load auth from to present a deposit")
+			fmt.Println("[DebugFullFlowDeposit] error when load auth from to present a deposit")
 			log.Fatal(err)
 			return nil, err
 		}
+		fmt.Printf("deposit account(%v): %v \n", i, privateKeyString)
 		authFrom.Value = big.NewInt(request.GetAmount() * 1e18)
 		// deposit
 		err = service.deposit(authFrom, privateKeyString, request.GetAmount())
@@ -240,13 +299,51 @@ func (service *Service) DebugFullFlowRegister(ctx context.Context, request *api.
 		}
 	}
 
-	return &api.DebugFullFlowRegisterResponse{
+	return &api.DebugFullFlowDepositResponse{
 		Res: "Success",
 	}, nil
 }
 
-func (service *Service) DebugFullFlowExistence(ctx context.Context, request *api.DebugFullFlowExistenceRequest) (*api.DebugFullFlowExistenceResponse, error) {
-	fmt.Println("Service: DebugFullFlowExistence")
+func (service *Service) DebugFullFlowTransfer(ctx context.Context, request *api.DebugFullFlowTransferRequest) (*api.DebugFullFlowTransferResponse, error) {
+	fmt.Println("Service: DebugFullFlowTransfer")
+
+	var (
+		client = service.client
+	)
+
+	for i := request.GetStartId(); i < utils.RollupSize+request.GetStartId(); i++ {
+		// load auth to present a contract call
+		authFrom, privateKeyString, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+			AddressesFile: service.addressFile,
+			Index:         i,
+		})
+		if err != nil {
+			fmt.Println("[DebugFullFlowTransfer] error when load auth from to present a transfer")
+			log.Fatal(err)
+			return nil, err
+		}
+		toPrivateKey := service.addressFile.PrivateKeySlice[i+1]
+		if i+1 == utils.RollupSize+request.GetStartId() {
+			toPrivateKey = service.addressFile.PrivateKeySlice[request.GetStartId()]
+		}
+		//fmt.Println("index: ", i)
+		//fmt.Println("from: ", utils.ECDSAPrivate2Address(privateKeyString))
+		//fmt.Println("to: ", utils.ECDSAPrivate2Address(toPrivateKey))
+		// transfer
+		amount := request.GetAmount() + int64(i%request.GetStartId())
+		err = service.transfer(authFrom, privateKeyString, toPrivateKey, amount)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &api.DebugFullFlowTransferResponse{
+		Res: "Success",
+	}, nil
+}
+
+func (service *Service) DebugFullFlowWithdraw(ctx context.Context, request *api.DebugFullFlowWithdrawRequest) (*api.DebugFullFlowWithdrawResponse, error) {
+	fmt.Println("Service: DebugFullFlowWithdraw")
 
 	var (
 		client = service.client
@@ -259,21 +356,20 @@ func (service *Service) DebugFullFlowExistence(ctx context.Context, request *api
 			Index:         i,
 		})
 		if err != nil {
-			fmt.Println("[DebugFullFlowExistence] error when load auth from to present a deposit")
+			fmt.Println("[DebugFullFlowWithdraw] error when load auth from to present a withdraw")
 			log.Fatal(err)
 			return nil, err
 		}
 		fmt.Println("index: ", i)
 		fmt.Println("private key: ", privateKeyString)
-		authFrom.Value = big.NewInt(request.GetAmount() * 1e18)
 		// deposit
-		err = service.deposit(authFrom, privateKeyString, request.GetAmount())
+		err = service.withdraw(authFrom, privateKeyString, request.GetAmount())
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return &api.DebugFullFlowExistenceResponse{
+	return &api.DebugFullFlowWithdrawResponse{
 		Res: "Success",
 	}, nil
 }

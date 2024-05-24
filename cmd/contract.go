@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os/exec"
 	"strings"
 	"zk-rollups/contracts/middleware_contract"
 	"zk-rollups/contracts/mimc_contract"
+	"zk-rollups/contracts/verifier/existence_contract"
+	"zk-rollups/contracts/verifier/register_contract"
 	"zk-rollups/helpers"
 	"zk-rollups/internal/models"
 	"zk-rollups/utils"
@@ -26,9 +29,17 @@ var (
 	WithdrawTxs         []*models.Transaction
 )
 
+type ContractInstance struct {
+	Register  *register_contract.RegisterContract
+	Existence *existence_contract.ExistenceContract
+}
+
 func DeploySmartContract(client *ethclient.Client, addressFile helpers.AddressesFile) (*models.AccountTree, *middleware_contract.MiddlewareContract, error) {
 	// ================ Init Account Tree ================
 	accountTree := models.NewAccountTree()
+
+	// ================ Init contracts instance ================
+	contractInstance := &ContractInstance{}
 
 	// ================== Deploy contracts ==================
 
@@ -41,8 +52,6 @@ func DeploySmartContract(client *ethclient.Client, addressFile helpers.Addresses
 		fmt.Println("error when load auth 0 to deploy contracts")
 		log.Fatal(err)
 	}
-	fmt.Println("Loaded auth0")
-
 	auth1, _, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
 		AddressesFile: addressFile,
 		Index:         1,
@@ -51,9 +60,14 @@ func DeploySmartContract(client *ethclient.Client, addressFile helpers.Addresses
 		fmt.Println("error when load auth 1 to deploy contracts")
 		log.Fatal(err)
 	}
-
-	fmt.Println("Loaded auth1")
-
+	auth2, _, err := helpers.LoadAuth(client, helpers.LoadAccountsOption{
+		AddressesFile: addressFile,
+		Index:         2,
+	})
+	if err != nil {
+		fmt.Println("error when load auth 2 to deploy contracts")
+		log.Fatal(err)
+	}
 	// deploy contracts
 	// Mimc contract
 	mimcAddress, mimcTx, mimcInstance, err := mimc_contract.DeployMimcContract(auth0, client)
@@ -80,6 +94,28 @@ func DeploySmartContract(client *ethclient.Client, addressFile helpers.Addresses
 	_ = middlewareTx
 	_ = middlewareAddress
 
+	// Register Verifier contract
+	registerVerifierAddress, registerVerifierTx, registerVerifierInstance, err := register_contract.DeployRegisterContract(auth2, client)
+	if err != nil {
+		fmt.Println("error deploy register contracts")
+		log.Fatal(err)
+	}
+
+	fmt.Println("Success, Register verifier contract address: ", registerVerifierAddress.Hex())
+	_ = registerVerifierTx
+	contractInstance.Register = registerVerifierInstance
+
+	// Existence Verifier contract
+	existenceVerifierAddress, existenceVerifierTx, existenceVerifierInstance, err := existence_contract.DeployExistenceContract(auth2, client)
+	if err != nil {
+		fmt.Println("error deploy existence contracts")
+		log.Fatal(err)
+	}
+
+	fmt.Println("Success, Existence verifier contract address: ", existenceVerifierAddress.Hex())
+	_ = existenceVerifierTx
+	contractInstance.Existence = existenceVerifierInstance
+
 	//================== Subscribing Log ==================
 	sub, logs, err := subscribeLogs(middlewareAddress, client)
 	if err != nil {
@@ -87,7 +123,7 @@ func DeploySmartContract(client *ethclient.Client, addressFile helpers.Addresses
 		log.Fatal(err)
 	}
 	//goroutine to handle logs
-	go func(sub ethereum.Subscription, logs chan types.Log, tree *models.AccountTree) {
+	go func(sub ethereum.Subscription, logs chan types.Log, tree *models.AccountTree, instances *ContractInstance) {
 		fmt.Println("Start goroutine to handle logs")
 		for {
 			select {
@@ -95,14 +131,14 @@ func DeploySmartContract(client *ethclient.Client, addressFile helpers.Addresses
 				fmt.Println("error subscribe filter logs")
 				log.Fatal(err)
 			case vLog := <-logs:
-				handleMiddlewareLog(vLog, tree)
+				handleMiddlewareLog(vLog, tree, instances)
 			}
 		}
-	}(sub, logs, accountTree)
+	}(sub, logs, accountTree, contractInstance)
 	return accountTree, middlewareInstance, nil
 }
 
-func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
+func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree, contractInstances *ContractInstance) {
 	// TODO: need convert it as a const to use later
 	middlewareContractAbi, err := abi.JSON(strings.NewReader(middleware_contract.MiddlewareContractMetaData.ABI))
 	if err != nil {
@@ -130,20 +166,20 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 		}
 
 		DepositRegisterTxs = append(DepositRegisterTxs, &models.Transaction{
-			FromX:  events[0].(*big.Int),
-			FromY:  events[1].(*big.Int),
-			ToX:    events[2].(*big.Int),
-			ToY:    events[3].(*big.Int),
-			Amount: events[4].(*big.Int),
-			Nonce:  new(big.Int),
-			R8X:    events[5].(*big.Int),
-			R8Y:    events[6].(*big.Int),
-			S:      events[7].(*big.Int),
+			FromX:        events[0].(*big.Int),
+			FromY:        events[1].(*big.Int),
+			ToX:          events[2].(*big.Int),
+			ToY:          events[3].(*big.Int),
+			Amount:       events[4].(*big.Int),
+			Nonce:        new(big.Int),
+			R8X:          events[5].(*big.Int),
+			R8Y:          events[6].(*big.Int),
+			S:            events[7].(*big.Int),
+			EcdsaAddress: events[8].(common.Address),
 		})
 
 		if len(DepositRegisterTxs) == utils.RollupSize {
-			fmt.Println("ROLLING UP REGISTER...")
-			RollupRegister(accountTree, DepositRegisterTxs)
+			RollupRegister(accountTree, DepositRegisterTxs, contractInstances)
 			// reset
 			DepositRegisterTxs = []*models.Transaction{}
 		}
@@ -167,7 +203,7 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 		})
 		if len(DepositExistenceTxs) == utils.RollupSize {
 			fmt.Println("ROLLING UP EXISTENCE...")
-			RollupExistence(accountTree, DepositExistenceTxs)
+			RollupExistence(accountTree, DepositExistenceTxs, contractInstances)
 			// reset
 			DepositExistenceTxs = []*models.Transaction{}
 		}
@@ -220,12 +256,12 @@ func handleMiddlewareLog(vLog types.Log, accountTree *models.AccountTree) {
 			WithdrawTxs = []*models.Transaction{}
 		}
 	default:
-		fmt.Println("error: not found event")
+		fmt.Printf("error: not found event %v", vLog.Topics[0].Hex())
 	}
 }
 
 // RollupRegister ...
-func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) {
+func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction, contractInstances *ContractInstance) {
 	fmt.Println("RollupRegister")
 
 	// ============== Proof Account Tree ================
@@ -234,8 +270,17 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 	newAccountTree := models.NewTreeFromAccounts(accounts)
 	registerAccountRoot := newAccountTree.GetRoot()
 
-	// // Find empty tree node
-	emptyNodeIndex := accountTree.FindEmptyNodeIndex()
+	// check signature
+	for _, tx := range txs {
+		valid := tx.VerifyTx()
+		if !valid {
+			fmt.Println("[RollupRegister] error: tx invalid, wrong signature")
+			return
+		}
+	}
+
+	// Find empty tree node
+	emptyNodeIndex, emptyAccountIndex := accountTree.FindEmptyNodeIndex()
 	if emptyNodeIndex == -1 {
 		fmt.Println("error: tree is full")
 		return
@@ -243,7 +288,7 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 	emptyNodeProof, emptyNodeProofPos := accountTree.GetProof(emptyNodeIndex)
 
 	// Update new account tree to main tree
-	accountTree.AddSubTree(emptyNodeIndex, newAccountTree)
+	accountTree.AddSubTree(emptyNodeIndex, emptyAccountIndex, newAccountTree)
 	accountTree.ReHashing(emptyNodeIndex)
 	newAccountRoot := accountTree.GetRoot()
 
@@ -253,21 +298,21 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 
 	// print file json
 	finalProof := &models.DepositRegisterProof{
-		DepositRegisterRoot: newTxsTree.GetRoot(),
-		RegisterAccountRoot: registerAccountRoot,
-		OldAccountRoot:      oldAccountRoot,
-		NewAccountRoot:      newAccountRoot,
-		ProofEmptyTree:      emptyNodeProof,
+		DepositRegisterRoot: newTxsTree.GetRoot().String(),
+		RegisterAccountRoot: registerAccountRoot.String(),
+		OldAccountRoot:      oldAccountRoot.String(),
+		NewAccountRoot:      newAccountRoot.String(),
+		ProofEmptyTree:      utils.Map(emptyNodeProof, func(p *big.Int) string { return p.String() }),
 		ProofPosEmptyTree:   emptyNodeProofPos,
-		SenderPubKeyX:       utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.FromX }),
-		SenderPubKeyY:       utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.FromY }),
-		ReceiverPubKeyX:     utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.ToX }),
-		ReceiverPubKeyY:     utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.ToY }),
-		Amount:              utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.Amount }),
-		R8X:                 utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.R8X }),
-		R8Y:                 utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.R8Y }),
-		S:                   utils.Map(txs, func(tx *models.Transaction) *big.Int { return tx.S }),
-		ProofTxExist:        proofTxExist,
+		SenderPubKeyX:       utils.Map(txs, func(tx *models.Transaction) string { return tx.FromX.String() }),
+		SenderPubKeyY:       utils.Map(txs, func(tx *models.Transaction) string { return tx.FromY.String() }),
+		ReceiverPubKeyX:     utils.Map(txs, func(tx *models.Transaction) string { return tx.ToX.String() }),
+		ReceiverPubKeyY:     utils.Map(txs, func(tx *models.Transaction) string { return tx.ToY.String() }),
+		Amount:              utils.Map(txs, func(tx *models.Transaction) string { return tx.Amount.String() }),
+		R8X:                 utils.Map(txs, func(tx *models.Transaction) string { return tx.R8X.String() }),
+		R8Y:                 utils.Map(txs, func(tx *models.Transaction) string { return tx.R8Y.String() }),
+		S:                   utils.Map(txs, func(tx *models.Transaction) string { return tx.S.String() }),
+		ProofTxExist:        utils.Map(proofTxExist, func(p []*big.Int) []string { return utils.Map(p, func(p *big.Int) string { return p.String() }) }),
 		ProofPosTxExist:     proofPosTxExist,
 	}
 	errJson := utils.PrintJson(finalProof, utils.PathRegister)
@@ -275,14 +320,39 @@ func RollupRegister(accountTree *models.AccountTree, txs []*models.Transaction) 
 		fmt.Println("error print json")
 		log.Fatal(errJson)
 	}
+
+	// generate proof for register
+	callData, err := exec.Command("/bin/bash", "/home/victus-15/Study/zk-rollups/circuits/deposit_register/run.sh").Output()
+	if err != nil {
+		fmt.Println("[Register] error generate proof")
+		log.Fatal(err)
+	}
+	fmt.Println("Success: generate proof")
+	proof := helpers.HandleRegisterCallData(string(callData))
+
+	// verify proof
+	valid, err := contractInstances.Register.VerifyProof(nil, proof.Pa, proof.Pb, proof.Pc, proof.Pub)
+	if err != nil {
+		fmt.Println("error verify proof")
+		log.Fatal(err)
+	}
+	//time.Sleep(5 * time.Second)
+	if !valid {
+		fmt.Println("error: invalid proof")
+	} else {
+		fmt.Println("Success: valid proof")
+	}
 }
 
-func RollupExistence(accountTree *models.AccountTree, txs []*models.Transaction) {
+func RollupExistence(accountTree *models.AccountTree, txs []*models.Transaction, contractInstances *ContractInstance) {
 	fmt.Println("RollupExistence")
 
-	//oldAccountRoot := accountTree.GetRoot()
-	var intermediateRoots []*big.Int
-	//accounts := models.ToListAccounts(txs)
+	oldAccountRoot := accountTree.GetRoot()
+	var (
+		intermediateRoots         []*big.Int
+		proofIntermediateRoots    [][]*big.Int
+		proofPosIntermediateRoots [][]int
+	)
 
 	for _, tx := range txs {
 		valid := tx.VerifyTx()
@@ -304,19 +374,62 @@ func RollupExistence(accountTree *models.AccountTree, txs []*models.Transaction)
 
 		// second: retrieve proofs
 		intermediateRoots = append(intermediateRoots, accountTree.GetRoot())
+		proof, pos := accountTree.GetProof(accountIdx)
+		proofIntermediateRoots = append(proofIntermediateRoots, proof)
+		proofPosIntermediateRoots = append(proofPosIntermediateRoots, pos)
 	}
 
-	// print file json // not done yet, need to define the struct of proof
-	//finalProof := &models.DepositExistenceProof{
-	//	OldAccountRoot:    oldAccountRoot,
-	//	NewAccountRoot:    nil,
-	//	IntermediateRoots: intermediateRoots,
-	//}
-	//errJson := utils.PrintJson(finalProof, utils.PathExistence)
-	//if errJson != nil {
-	//	fmt.Println("[RollupExistence] error print json")
-	//	log.Fatal(errJson)
-	//}
+	// ================== Proof Txs Tree ==================
+	newTxsTree := models.NewTreeFromTransactions(txs)
+	proofTxExist, proofPosTxExist := newTxsTree.GetProofAll()
+
+	// print file json
+	finalProof := &models.DepositExistenceProof{
+		DepositExistenceRoot:      newTxsTree.GetRoot().String(),
+		OldAccountRoot:            oldAccountRoot.String(),
+		IntermediateRoots:         utils.Map(intermediateRoots, func(p *big.Int) string { return p.String() }),
+		NewAccountHash:            nil,
+		ProofIntermediateRoots:    utils.Map(proofIntermediateRoots, func(p []*big.Int) []string { return utils.Map(p, func(p *big.Int) string { return p.String() }) }),
+		ProofPosIntermediateRoots: proofPosIntermediateRoots,
+		SenderPubKeyX:             utils.Map(txs, func(tx *models.Transaction) string { return tx.FromX.String() }),
+		SenderPubKeyY:             utils.Map(txs, func(tx *models.Transaction) string { return tx.FromY.String() }),
+		ReceiverPubKeyX:           utils.Map(txs, func(tx *models.Transaction) string { return tx.ToX.String() }),
+		ReceiverPubKeyY:           utils.Map(txs, func(tx *models.Transaction) string { return tx.ToY.String() }),
+		Amount:                    utils.Map(txs, func(tx *models.Transaction) string { return tx.Amount.String() }),
+		R8X:                       utils.Map(txs, func(tx *models.Transaction) string { return tx.R8X.String() }),
+		R8Y:                       utils.Map(txs, func(tx *models.Transaction) string { return tx.R8Y.String() }),
+		S:                         utils.Map(txs, func(tx *models.Transaction) string { return tx.S.String() }),
+		ProofTxExist:              utils.Map(proofTxExist, func(p []*big.Int) []string { return utils.Map(p, func(p *big.Int) string { return p.String() }) }),
+		ProofPosTxExist:           proofPosTxExist,
+	}
+	errJson := utils.PrintJson(finalProof, utils.PathExistence)
+	if errJson != nil {
+		fmt.Println("[RollupExistence] error print json")
+		log.Fatal(errJson)
+	}
+
+	// generate proof for existence
+	callData, err := exec.Command("/bin/bash", "/home/victus-15/Study/zk-rollups/circuits/deposit_existence/run.sh").Output()
+	if err != nil {
+		fmt.Println("[Existence] error generate proof")
+		log.Fatal(err)
+	}
+	fmt.Println("Success: generate proof")
+	fmt.Println(string(callData))
+	proof := helpers.HandleExistenceCallData(string(callData))
+
+	// verify proof
+	valid, err := contractInstances.Existence.VerifyProof(nil, proof.Pa, proof.Pb, proof.Pc, proof.Pub)
+	if err != nil {
+		fmt.Println("error verify proof")
+		log.Fatal(err)
+	}
+	//time.Sleep(5 * time.Second)
+	if !valid {
+		fmt.Println("error: invalid proof")
+	} else {
+		fmt.Println("Success: valid proof")
+	}
 }
 
 func RollupTransfer(accountTree *models.AccountTree, txs []*models.Transaction) {

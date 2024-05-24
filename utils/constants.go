@@ -3,10 +3,10 @@ package utils
 // topic of events Ethereum
 const (
 	TopicGetString        = "0x766ba33eed9390bf74894ab64d15834eddb4095e00203e303f9377052e41bb69"
-	TopicDepositRegister  = "0x1d0df93e9d41caa013439fb3104924ce014d7f34ce7aa77377f4dcac09c4e7c8"
-	TopicDepositExistence = "0xfae7f5fe9ee7c362b25572c6cbbf33ee1bdb8ea4e4b73ab8666dfa4f2712e645"
-	TopicTransfer         = "0xea187e67c172eb2c3d9190685e5921d1e75e9363cb113adb71816c3af1303008"
-	TopicWithdraw         = "0x69e9ae955363731d6e1cd40b361f1db7d5926cc88c7554b40ed23ffc1e90b333"
+	TopicDepositRegister  = "0x751175c6d256080f1dc18961160a34eaea9ed4a1cdfb588965c1e6773f0b1b5d"
+	TopicDepositExistence = "0x491577f128894a90b4c9e9030d8c12bb9eef10c882449617c6fce7fc933041f3"
+	TopicTransfer         = "0x5e79ad63e9e97283e51f080decc9f9596a07fd0a490fd1ae5bbdba9637618c09"
+	TopicWithdraw         = "0x585fdad1bf3a83dd57e4e7e3fa8b91b9b2a9a2b243fa4f5874b0a2fb88fd7115"
 )
 
 const (
@@ -26,6 +26,7 @@ const (
 
 const (
 	EmptyString = ""
+	Comma       = ","
 	MinusOne    = -1
 	ZeroNumber  = 0
 	TwoNumber   = 2

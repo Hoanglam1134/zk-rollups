@@ -9,10 +9,11 @@ import (
 )
 
 type Account struct {
-	Index      int
-	PubX, PubY *big.Int
-	Nonce      *big.Int
-	Balance    *big.Int
+	Index        int
+	PubX, PubY   *big.Int
+	Nonce        *big.Int
+	Balance      *big.Int
+	EcdsaAddress string
 }
 
 // AccountTree is a Merkle tree of accounts
@@ -28,15 +29,7 @@ type AccountTree struct {
 //===================Methods===================
 
 func (a *Account) GetHash() *big.Int {
-	return utils.MultiMiMC7BigInt(a.PubX, a.PubY, a.Nonce, a.Balance)
-}
-
-func (a *Account) GetPubKeyShow() string {
-	pk := babyjub.PublicKey{
-		X: a.PubX,
-		Y: a.PubY,
-	}
-	return pk.String()
+	return utils.MultiMiMC7BigInt(a.PubX, a.PubY, a.Balance, a.Nonce)
 }
 
 // NewAccountTree creates a new AccountTree with the default height
@@ -44,8 +37,8 @@ func NewAccountTree() *AccountTree {
 	tree := new(AccountTree)
 	// We can change the height of the Tree here
 	tree.HashValueZeros = make([]*big.Int, utils.BigTreeHeight) // we start counting from 0
-	tree.Node = make([]*big.Int, (1<<(utils.BigTreeHeight))-1)
-	tree.Arr = make([]*Account, 1<<(utils.BigTreeHeight-1))
+	tree.Node = make([]*big.Int, (1<<(utils.BigTreeHeight))-1)  // 2^16 - 1 = 65535
+	tree.Arr = make([]*Account, 1<<(utils.BigTreeHeight-1))     // 2^15 = 32768
 
 	// Create the last layer of the tree
 	bigInZero := big.NewInt(0)
@@ -55,8 +48,8 @@ func NewAccountTree() *AccountTree {
 			Index:   -1,
 			PubX:    bigInZero,
 			PubY:    bigInZero,
-			Nonce:   bigInZero,
 			Balance: bigInZero,
+			Nonce:   bigInZero,
 		}
 		tree.Node[indexNumber] = tree.Arr[i].GetHash()
 	}
@@ -66,9 +59,17 @@ func NewAccountTree() *AccountTree {
 	for index := utils.BigTreeHeight - 2; index >= 0; index-- {
 		tree.HashValueZeros[index] = utils.MultiMiMC7BigInt(tree.HashValueZeros[index+1], tree.HashValueZeros[index+1])
 	}
+	fmt.Println("tree hash value zeros")
+	for i := 0; i < utils.BigTreeHeight; i++ {
+		fmt.Println(tree.HashValueZeros[i].String())
+	}
 
-	for index := (utils.AccountSize) - 2; index >= 0; index-- {
-		tree.Node[index] = utils.MultiMiMC7BigInt(tree.Node[index*2+1], tree.Node[index*2+2])
+	level := 0
+	for index := 0; index < utils.AccountSize-1; index++ {
+		if index > 0 && index&(index+1) == 0 {
+			level += 1
+		}
+		tree.Node[index] = tree.HashValueZeros[level]
 	}
 	return tree
 }
@@ -98,23 +99,24 @@ func NewTreeFromAccounts(accounts []*Account) *AccountTree {
 	return tree
 }
 
-// FindEmptyNodeIndex ...
-// TODO: update this into finding more suitable position to add near the leaf-level
-func (tree *AccountTree) FindEmptyNodeIndex() int {
-	// Since we already know the fixed height of the register tree, we can jump directly to that level.
-	index := 0
-	for i := 1; i < len(tree.Node); i++ {
-		if (i & (i + 1)) == 0 {
-			index++
+// FindEmptyNodeIndex returns (index of the empty node, index of the empty account)
+func (tree *AccountTree) FindEmptyNodeIndex() (int, int) {
+	// Since we already know the fixed height of the register tree, we can jump directly to that node.
+	// e.g: roll-up size = 4, subtree height = 3 => 7 nodes and 4 accounts,
+	// big tree height = 16, then root of subtree will be at index 7 (2^(big tree - subtree) - 1 = 7)
+	// If this is second register roll-up, then the root of the subtree 7 + 1 = 8
+	subtreeLevel := utils.BigTreeHeight - utils.RollupTreeHeight
+	rootIndex := 1<<subtreeLevel - 1
+	for i := 0; rootIndex < (1<<(subtreeLevel+1))-1; rootIndex++ {
+		if tree.Node[rootIndex].Cmp(tree.HashValueZeros[subtreeLevel]) == 0 {
+			return rootIndex, i
 		}
-		if tree.Node[i].Cmp(tree.HashValueZeros[index]) == 0 {
-			return i
-		}
+		i += utils.RollupSize
 	}
-	return -1
+	return -1, -1
 }
 
-// GetProof returns the proof of the Node at index (0-15)
+// GetProof returns the proof of the Node at index
 func (tree *AccountTree) GetProof(idx int) ([]*big.Int, []int) {
 	proof := make([]*big.Int, 0)
 	proofPos := make([]int, 0)
@@ -148,42 +150,26 @@ func (tree *AccountTree) GetRoot() *big.Int {
 	return tree.Node[0]
 }
 
-func (tree *AccountTree) AddSubTree(index int, subTree *AccountTree) {
+func (tree *AccountTree) AddSubTree(index int, emptyAccountIndex int, subTree *AccountTree) {
 	// update hash value
 	level := 0
 	// index passed in as value 1, we want to use that value to navigate and update the respective node
 	// make a complete binary tree index from 0
-	/**
-						0
-			1 						2
-		3			4			5			6
-	7		8	9		10	11		12	13		14
-	*/
-
 	for i := 0; i < len(subTree.Node); i++ {
+		//fmt.Printf("AddSubTree: level = %d, i: %d \n", level, i)
 		// find index of the node in the tree
 		// level change when i = 1, 3, 7, 15 => all bit of i is 1
-		fmt.Println("AddSubTree: index = ", (index<<level)+i)
-		tree.Node[(index<<level)+i] = subTree.Node[i]
+		//fmt.Println("AddSubTree: index = ", (index<<level)+i
 		if i > 0 && i&(i+1) == 0 {
-			fmt.Printf("AddSubTree: level = %d, i: %d \n", level, i)
 			level += 1
 		}
+		tree.Node[(index<<level)+i] = subTree.Node[i]
 	}
 
 	// update leaf nodes: accounts
-	if index == 2 {
-		fmt.Println("AddSubTree: index = 2")
-		level = 4
-	} else {
-		level = 0
-	}
 	for i, account := range subTree.Arr {
-		if account == nil {
-			continue
-		}
-		tree.Arr[i+level] = account
-		tree.Arr[i+level].Index = i + level
+		tree.Arr[i+emptyAccountIndex] = account
+		tree.Arr[i+emptyAccountIndex].Index = i + emptyAccountIndex
 	}
 }
 
@@ -237,6 +223,7 @@ func (tree *AccountTree) AddBalanceToAccount(pubX, pubY *big.Int, amount *big.In
 			fmt.Println("AddTxToAccount: new balance = ", tree.Arr[i].Balance.String())
 
 			// rehash the tree from the leaf to the root
+			tree.Node[i+(1<<(utils.BigTreeHeight-1))-1] = tree.Arr[i].GetHash()
 			tree.ReHashing(i + (1 << (utils.BigTreeHeight - 1)) - 1) // i + 2^15 - 1 = 32767 + i
 
 			return i
@@ -259,13 +246,15 @@ func (tree *AccountTree) UpdateAccount(acc *Account) int {
 	return -1
 }
 
+// CreateNewAccount this function create new temp account for debug - testing purpose
 func CreateNewAccount(privateKeyInput string) (*Account, babyjub.PrivateKey) {
 	publicKey, privateKey := utils.Private2Public(privateKeyInput)
 	return &Account{
-		Index:   -1, // which means this account is not in the tree (or free account, not set up yet)
-		PubX:    publicKey.Point().X,
-		PubY:    publicKey.Point().Y,
-		Nonce:   big.NewInt(0),
-		Balance: big.NewInt(0),
+		Index:        -1, // which means this account is not in the tree (or free account, not set up yet)
+		PubX:         publicKey.Point().X,
+		PubY:         publicKey.Point().Y,
+		Nonce:        big.NewInt(0),
+		Balance:      big.NewInt(0),
+		EcdsaAddress: utils.ECDSAPrivate2Address(privateKeyInput),
 	}, *privateKey
 }

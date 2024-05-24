@@ -4,55 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/iden3/go-iden3-crypto/babyjub"
+	"github.com/iden3/go-iden3-crypto/mimc7"
+	"log"
 	"math/big"
 	"os"
-
-	"github.com/iden3/go-iden3-crypto/mimc7"
+	"strings"
 )
 
-// ConvertToBytes32 convert []byte to [32]byte
-// this function also add padding to the end of []byte if it is not enough
-func ConvertToBytes32(data []byte) [32]byte {
-	var src [32]byte
-	copy(src[:], append(data, make([]byte, 32-len(data))...))
-	return src
-}
-
-// MiMCHash calculate hash of inputs
-// return hash as *big.Int
-func MiMCHash(inputs ...[]byte) *big.Int {
-	res := make([]byte, 0)
-	for _, x := range inputs {
-		res = append(res, x...)
-	}
-	return mimc7.HashBytes(res)
-}
-
 func MultiMiMC7BigInt(input ...*big.Int) *big.Int {
-	// key is zero
-	ret, err := mimc7.Hash(input, big.NewInt(0))
+	// key is length of input
+	key := len(input)
+	ret, err := mimc7.Hash(input, big.NewInt(int64(key)))
 	if err != nil {
 		fmt.Printf("multi mimc7 hash is error: %v\n", err)
 		return big.NewInt(0)
 	}
 	return ret
-}
-
-func ByteToBigInt(src []byte) *big.Int {
-	return new(big.Int).SetBytes(src[:])
-}
-
-func ByteEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for index, value := range a {
-		if value != b[index] {
-			return false
-		}
-	}
-	return true
 }
 
 func PrintJson(data interface{}, fileName string) error {
@@ -89,10 +58,17 @@ func Private2Public(privateKeyInput string) (*babyjub.PublicKey, *babyjub.Privat
 	return privateKey.Public(), &privateKey
 }
 
-func PublicKeyToString(pub *babyjub.PublicKey) string {
-	pk := babyjub.PublicKey{
-		X: pub.Point().X,
-		Y: pub.Point().Y,
+func ECDSAPrivate2Address(privateKeyInput string) string {
+	// remove 0x from hex string if exist
+	if len(privateKeyInput) > 2 && privateKeyInput[:2] == "0x" {
+		privateKeyInput = privateKeyInput[2:]
 	}
-	return pk.String()
+
+	ecdsaPrivateKey, err := crypto.HexToECDSA(privateKeyInput)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ecdsaPublicKey := ecdsaPrivateKey.PublicKey
+	address := strings.ToLower(crypto.PubkeyToAddress(ecdsaPublicKey).String())
+	return address
 }

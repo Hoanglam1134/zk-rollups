@@ -30,34 +30,40 @@ template Main(D, d) {
     signal input proofPosTxExist[noNewAccount][d];
 
     // variables
-    var hash0List[10] = [
-        1573324186036448713481346981587450647264984233512279814663328547409663481937,
-        9221018895050993324292303320438868939233722601173553706050470331080290750693,
-        12999365443651442215514895308017834519512617414559443468873955037117958277416,
-        20000342084434355373885637637578843870879198134980505504746864372412689521413,
-        21131570394556002839255503091195735945490554868211137009219364774137823738322,
-        6641720650120903822738321354484653400594044929628658080119759607253877941163,
-        17934353524240691345766712740369447790455352429584677216942906113774579929243,
-        4792376650332574253220644164029478246267631554842952771122075147151438494199,
-        21003074257506404549439079356060811589472268388178763634295358398690127726232,
-        6984959195455514022151545760850437139389537397033278595432294845838845639909
+    var hash0List[16] = [
+        18560928799293194420552322456901778377346958119315652203206112467801117568374,
+        20146106863440695501458138644691091300071143911005438468730958044500575059863,
+        14912254718521785794533132013329647391127072370976167592416455059064425991007,
+        4908908391849116255729046104086755097627343288084655776379864858281161625707,
+        6336925067438789274904340693933120466252047678819867694049987887226633725534,
+        12899792043445421187807408401756294031855582550461974898928524258960585269141,
+        16959100380875170823283054428518690854372649812500065475365525073088034587834,
+        21091416864653949885076982366447492246202815813380463164598922803533279904013,
+        415988345246705407411286089535406326232056391505629926444273382638964443831,
+        21085382264118145300711525558397152713694144707451312452204266184858981942728,
+        5898755207758162788573538170369894980615929765122925590742816663515363410246,
+        1330005926393843105383439305489047580207396614092548444145892094306829969947,
+        18279067695950923931780694213283340776147767794816260709262940858538001040141,
+        900874785802902563431284098869516253257880530661551091336286492985583416122,
+        2798825080655784019001757062807675119844105627778752392541648236604635878249,
+        18977145006693056439239062351933316051450864262441336283221961077338418046221
     ];
 
     // Check Signature & the existence of transactions
     component signatureCheck[noNewAccount];
     component converter[noNewAccount];
-    component msghash[noNewAccount];
+    component msgHash[noNewAccount];
     component proofExistTxHash[noNewAccount][d];
     for (var i = 0; i < noNewAccount; i++) {
         // hash transaction
-        msghash[i] = MultiMiMC7(6, 91);
-        msghash[i].in[0] <== senderPubKeyX[i];
-        msghash[i].in[1] <== senderPubKeyY[i];
-        msghash[i].in[2] <== receiverPubKeyX[i];
-        msghash[i].in[3] <== receiverPubKeyY[i];
-        msghash[i].in[4] <== 0;
-        msghash[i].in[5] <== amount[i];
-        msghash[i].k <== 6;
+        msgHash[i] = MultiMiMC7(6, 91);
+        msgHash[i].in[0] <== senderPubKeyX[i];
+        msgHash[i].in[1] <== senderPubKeyY[i];
+        msgHash[i].in[2] <== receiverPubKeyX[i];
+        msgHash[i].in[3] <== receiverPubKeyY[i];
+        msgHash[i].in[4] <== amount[i];
+        msgHash[i].in[5] <== 0;
+        msgHash[i].k <== 6;
 
         // check signature
         signatureCheck[i] = EdDSAMiMCVerifier();
@@ -67,31 +73,34 @@ template Main(D, d) {
         signatureCheck[i].S <== S[i];
         signatureCheck[i].R8x <== R8X[i];
         signatureCheck[i].R8y <== R8Y[i];
-        signatureCheck[i].M <== msghash[i].out;
+        signatureCheck[i].M <== msgHash[i].out;
 
         // check transaction proof
-        for (var j = 0; j < d; j++) {
+        proofExistTxHash[i][0] = MultiMiMC7(2, 91);
+        proofExistTxHash[i][0].in[0] <== proofTxExist[i][0] + proofPosTxExist[i][0] * (msgHash[i].out - proofTxExist[i][0]);
+        proofExistTxHash[i][0].in[1] <== msgHash[i].out +  proofPosTxExist[i][0] * (proofTxExist[i][0] - msgHash[i].out);
+        proofExistTxHash[i][0].k <== 2;
+        for (var j = 1; j < d; j++) {
             proofExistTxHash[i][j] = MultiMiMC7(2, 91);
-            proofExistTxHash[i][j].in[0] <== proofTxExist[i][j] + proofPosTxExist[i][j] * (((j == 0) ? msghash[i].out : proofExistTxHash[i][j-1].out) - proofTxExist[i][j]);
-            proofExistTxHash[i][j].in[1] <== ((j == 0) ? msghash[i].out : proofExistTxHash[i][j-1].out) +  proofPosTxExist[i][j] * (proofTxExist[i][j] - ((j == 0) ? msghash[i].out : proofExistTxHash[i][j-1].out));
+            proofExistTxHash[i][j].in[0] <== proofTxExist[i][j] + proofPosTxExist[i][j] * (proofExistTxHash[i][j-1].out - proofTxExist[i][j]);
+            proofExistTxHash[i][j].in[1] <== proofExistTxHash[i][j-1].out +  proofPosTxExist[i][j] * (proofTxExist[i][j] - proofExistTxHash[i][j-1].out);
             proofExistTxHash[i][j].k <== 2;
         }
         depositRegisterRoot === proofExistTxHash[i][d-1].out;
-
-        /*
-        check exist account (receiver) = merkle proof
-        update balance
-        cal intermediate account root (merkle proof)
-        compare intermediate account root
-        */
-}
+    }
 
     /* Exist Empty Sub for new Account Tree ?  */
+    var j = D_d;
     component existSubTreeHash[D_d];
-    for (var i = 0; i < D_d ; i++) {
+    existSubTreeHash[0] = MultiMiMC7(2, 91);
+    existSubTreeHash[0].in[0] <== proofEmptyTree[0] + proofPosEmptyTree[0] * (hash0List[j] - proofEmptyTree[0]);
+    existSubTreeHash[0].in[1] <== hash0List[j] + proofPosEmptyTree[0] * (proofEmptyTree[0] - hash0List[j]);
+    existSubTreeHash[0].k <== 2;
+    for (var i = 1; i < D_d ; i++) {
+        j--;
         existSubTreeHash[i] = MultiMiMC7(2, 91);
-        existSubTreeHash[i].in[0] <== proofEmptyTree[i] + proofPosEmptyTree[i] * (((i == 0) ? hash0List[2] : existSubTreeHash[i-1].out) - proofEmptyTree[i]);
-        existSubTreeHash[i].in[1] <== ((i == 0) ? hash0List[2] : existSubTreeHash[i-1].out) + proofPosEmptyTree[i] * (proofEmptyTree[i] - ((i == 0) ? hash0List[2] : existSubTreeHash[i-1].out));
+        existSubTreeHash[i].in[0] <== proofEmptyTree[i] + proofPosEmptyTree[i] * (existSubTreeHash[i-1].out - proofEmptyTree[i]);
+        existSubTreeHash[i].in[1] <== existSubTreeHash[i-1].out + proofPosEmptyTree[i] * (proofEmptyTree[i] - existSubTreeHash[i-1].out);
         existSubTreeHash[i].k <== 2;
     }
     existSubTreeHash[D_d-1].out === oldAccountRoot;
@@ -104,8 +113,8 @@ template Main(D, d) {
         newAccountRootHash[i].in[1] <== ((i == 0) ? registerAccountRoot : newAccountRootHash[i-1].out) + proofPosEmptyTree[i] * (proofEmptyTree[i] - ((i == 0) ? registerAccountRoot : newAccountRootHash[i-1].out));
         newAccountRootHash[i].k <== 2;
     }
-    // newAccountRootHash[D_d-1].out === newAccountRoot;
+    newAccountRootHash[D_d-1].out === newAccountRoot;
 }
 
 
-component main {public [registerAccountRoot, oldAccountRoot, depositRegisterRoot, newAccountRoot]}  = Main(3, 2);
+component main {public [registerAccountRoot, oldAccountRoot, depositRegisterRoot, newAccountRoot]}  = Main(15, 2);

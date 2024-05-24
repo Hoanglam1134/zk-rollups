@@ -1,8 +1,10 @@
 package models
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"log"
 	"math/big"
+	"strings"
 	"zk-rollups/utils"
 
 	"github.com/iden3/go-iden3-crypto/babyjub"
@@ -10,15 +12,16 @@ import (
 )
 
 type Transaction struct {
-	FromX  *big.Int
-	FromY  *big.Int
-	ToX    *big.Int
-	ToY    *big.Int
-	Amount *big.Int
-	Nonce  *big.Int
-	R8X    *big.Int
-	R8Y    *big.Int
-	S      *big.Int
+	FromX        *big.Int
+	FromY        *big.Int
+	ToX          *big.Int
+	ToY          *big.Int
+	Amount       *big.Int
+	Nonce        *big.Int
+	R8X          *big.Int
+	R8Y          *big.Int
+	S            *big.Int
+	EcdsaAddress common.Address
 }
 
 type TransactionTree struct {
@@ -28,12 +31,14 @@ type TransactionTree struct {
 
 func (tx *Transaction) GetHash() *big.Int {
 	ret, err := mimc7.Hash(
-		[]*big.Int{tx.FromX,
+		[]*big.Int{
+			tx.FromX,
 			tx.FromY,
 			tx.ToX,
 			tx.ToY,
 			tx.Amount,
-			tx.Nonce}, big.NewInt(0),
+			tx.Nonce,
+		}, big.NewInt(6),
 	)
 
 	if err != nil {
@@ -54,7 +59,7 @@ func (tx *Transaction) SignTx(privateKey babyjub.PrivateKey) *babyjub.Signature 
 
 func (tx *Transaction) VerifyTx() bool {
 	// verify signature
-	edDsaPubkeyFrom := babyjub.PublicKey{
+	edDsaPubKeyFrom := babyjub.PublicKey{
 		X: tx.FromX,
 		Y: tx.FromY,
 	}
@@ -67,8 +72,9 @@ func (tx *Transaction) VerifyTx() bool {
 		S: tx.S,
 	}
 
+	//testHash, _ := new(big.Int).SetString("18213659441382708760379232050677169812963300611699484071648894421553512677621", 10)
 	// TODO: improve this to reduce using hashMimc()
-	return edDsaPubkeyFrom.VerifyMimc7(tx.GetHash(), &signature)
+	return edDsaPubKeyFrom.VerifyMimc7(tx.GetHash(), &signature)
 }
 
 // ToListAccounts convert list of transactions to list of accounts
@@ -78,11 +84,12 @@ func ToListAccounts(txs []*Transaction) []*Account {
 	for i, tx := range txs {
 		accounts[i] = &Account{
 			// -1 means this account is not in the tree
-			Index:   -1,
-			PubX:    tx.ToX,
-			PubY:    tx.ToY,
-			Nonce:   tx.Nonce,
-			Balance: tx.Amount,
+			Index:        -1,
+			PubX:         tx.ToX,
+			PubY:         tx.ToY,
+			Nonce:        tx.Nonce,
+			Balance:      tx.Amount,
+			EcdsaAddress: strings.ToLower(tx.EcdsaAddress.String()),
 		}
 	}
 	return accounts

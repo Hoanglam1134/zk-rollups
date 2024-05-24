@@ -26,38 +26,66 @@ signal input proofPosTxExist[noNewAccount][d];
 */
 
 type DepositRegisterProof struct {
-	DepositRegisterRoot *big.Int     `json:"depositRegisterRoot"`
-	RegisterAccountRoot *big.Int     `json:"registerAccountRoot"`
-	OldAccountRoot      *big.Int     `json:"oldAccountRoot"`
-	NewAccountRoot      *big.Int     `json:"newAccountRoot"`
-	ProofEmptyTree      []*big.Int   `json:"proofEmptyTree"`
-	ProofPosEmptyTree   []int        `json:"proofPosEmptyTree"`
-	SenderPubKeyX       []*big.Int   `json:"senderPubKeyX"`
-	SenderPubKeyY       []*big.Int   `json:"senderPubKeyY"`
-	ReceiverPubKeyX     []*big.Int   `json:"receiverPubKeyX"`
-	ReceiverPubKeyY     []*big.Int   `json:"receiverPubKeyY"`
-	Amount              []*big.Int   `json:"amount"`
-	R8X                 []*big.Int   `json:"R8X"`
-	R8Y                 []*big.Int   `json:"R8Y"`
-	S                   []*big.Int   `json:"S"`
-	ProofTxExist        [][]*big.Int `json:"proofTxExist"`
-	ProofPosTxExist     [][]int      `json:"proofPosTxExist"`
+	DepositRegisterRoot string     `json:"depositRegisterRoot"`
+	RegisterAccountRoot string     `json:"registerAccountRoot"`
+	OldAccountRoot      string     `json:"oldAccountRoot"`
+	NewAccountRoot      string     `json:"newAccountRoot"`
+	ProofEmptyTree      []string   `json:"proofEmptyTree"`
+	ProofPosEmptyTree   []int      `json:"proofPosEmptyTree"`
+	SenderPubKeyX       []string   `json:"senderPubKeyX"`
+	SenderPubKeyY       []string   `json:"senderPubKeyY"`
+	ReceiverPubKeyX     []string   `json:"receiverPubKeyX"`
+	ReceiverPubKeyY     []string   `json:"receiverPubKeyY"`
+	Amount              []string   `json:"amount"`
+	R8X                 []string   `json:"R8X"`
+	R8Y                 []string   `json:"R8Y"`
+	S                   []string   `json:"S"`
+	ProofTxExist        [][]string `json:"proofTxExist"`
+	ProofPosTxExist     [][]int    `json:"proofPosTxExist"`
 }
 
 type DepositExistenceProof struct {
-	OldAccountRoot    *big.Int
-	NewAccountRoot    *big.Int
-	IntermediateRoots []*big.Int
+	DepositExistenceRoot      string     `json:"depositExistenceRoot"`
+	OldAccountRoot            string     `json:"oldAccountRoot"`
+	IntermediateRoots         []string   `json:"intermediateRoots"`
+	NewAccountHash            []string   `json:"newAccountHash"`
+	ProofIntermediateRoots    [][]string `json:"proofIntermediateRoots"`
+	ProofPosIntermediateRoots [][]int    `json:"proofPosIntermediateRoots"`
+	SenderPubKeyX             []string   `json:"senderPubKeyX"`
+	SenderPubKeyY             []string   `json:"senderPubKeyY"`
+	ReceiverPubKeyX           []string   `json:"receiverPubKeyX"`
+	ReceiverPubKeyY           []string   `json:"receiverPubKeyY"`
+	Amount                    []string   `json:"amount"`
+	R8X                       []string   `json:"R8X"`
+	R8Y                       []string   `json:"R8Y"`
+	S                         []string   `json:"S"`
+	ProofTxExist              [][]string `json:"proofTxExist"`
+	ProofPosTxExist           [][]int    `json:"proofPosTxExist"`
 }
 
 type TransferProof struct {
-	OldAccountRoot *big.Int
-	NewAccountRoot *big.Int
-	ProofEmptyTree []*big.Int
+	OldAccountRoot string
+	NewAccountRoot string
+	ProofEmptyTree []string
 }
 
 type WithdrawProof struct {
-	OldAccountRoot *big.Int
-	NewAccountRoot *big.Int
-	ProofEmptyTree []*big.Int
+	OldAccountRoot string
+	NewAccountRoot string
+	ProofEmptyTree []string
+}
+
+// CallData ...
+type CallDataRegister struct {
+	Pa  [2]*big.Int
+	Pb  [2][2]*big.Int
+	Pc  [2]*big.Int
+	Pub [4]*big.Int
+}
+
+type CallDataExistence struct {
+	Pa  [2]*big.Int
+	Pb  [2][2]*big.Int
+	Pc  [2]*big.Int
+	Pub [2]*big.Int
 }

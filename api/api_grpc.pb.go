@@ -29,8 +29,9 @@ type LayerTwoServiceClient interface {
 	// DebugTransfer
 	DebugTransfer(ctx context.Context, in *DebugTransferRequest, opts ...grpc.CallOption) (*DebugTransferResponse, error)
 	DebugWithdraw(ctx context.Context, in *DebugWithdrawRequest, opts ...grpc.CallOption) (*DebugWithdrawResponse, error)
-	DebugFullFlowRegister(ctx context.Context, in *DebugFullFlowRegisterRequest, opts ...grpc.CallOption) (*DebugFullFlowRegisterResponse, error)
-	DebugFullFlowExistence(ctx context.Context, in *DebugFullFlowExistenceRequest, opts ...grpc.CallOption) (*DebugFullFlowExistenceResponse, error)
+	DebugFullFlowDeposit(ctx context.Context, in *DebugFullFlowDepositRequest, opts ...grpc.CallOption) (*DebugFullFlowDepositResponse, error)
+	DebugFullFlowTransfer(ctx context.Context, in *DebugFullFlowTransferRequest, opts ...grpc.CallOption) (*DebugFullFlowTransferResponse, error)
+	DebugFullFlowWithdraw(ctx context.Context, in *DebugFullFlowWithdrawRequest, opts ...grpc.CallOption) (*DebugFullFlowWithdrawResponse, error)
 }
 
 type layerTwoServiceClient struct {
@@ -77,18 +78,27 @@ func (c *layerTwoServiceClient) DebugWithdraw(ctx context.Context, in *DebugWith
 	return out, nil
 }
 
-func (c *layerTwoServiceClient) DebugFullFlowRegister(ctx context.Context, in *DebugFullFlowRegisterRequest, opts ...grpc.CallOption) (*DebugFullFlowRegisterResponse, error) {
-	out := new(DebugFullFlowRegisterResponse)
-	err := c.cc.Invoke(ctx, "/api.LayerTwoService/DebugFullFlowRegister", in, out, opts...)
+func (c *layerTwoServiceClient) DebugFullFlowDeposit(ctx context.Context, in *DebugFullFlowDepositRequest, opts ...grpc.CallOption) (*DebugFullFlowDepositResponse, error) {
+	out := new(DebugFullFlowDepositResponse)
+	err := c.cc.Invoke(ctx, "/api.LayerTwoService/DebugFullFlowDeposit", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *layerTwoServiceClient) DebugFullFlowExistence(ctx context.Context, in *DebugFullFlowExistenceRequest, opts ...grpc.CallOption) (*DebugFullFlowExistenceResponse, error) {
-	out := new(DebugFullFlowExistenceResponse)
-	err := c.cc.Invoke(ctx, "/api.LayerTwoService/DebugFullFlowExistence", in, out, opts...)
+func (c *layerTwoServiceClient) DebugFullFlowTransfer(ctx context.Context, in *DebugFullFlowTransferRequest, opts ...grpc.CallOption) (*DebugFullFlowTransferResponse, error) {
+	out := new(DebugFullFlowTransferResponse)
+	err := c.cc.Invoke(ctx, "/api.LayerTwoService/DebugFullFlowTransfer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *layerTwoServiceClient) DebugFullFlowWithdraw(ctx context.Context, in *DebugFullFlowWithdrawRequest, opts ...grpc.CallOption) (*DebugFullFlowWithdrawResponse, error) {
+	out := new(DebugFullFlowWithdrawResponse)
+	err := c.cc.Invoke(ctx, "/api.LayerTwoService/DebugFullFlowWithdraw", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -106,8 +116,9 @@ type LayerTwoServiceServer interface {
 	// DebugTransfer
 	DebugTransfer(context.Context, *DebugTransferRequest) (*DebugTransferResponse, error)
 	DebugWithdraw(context.Context, *DebugWithdrawRequest) (*DebugWithdrawResponse, error)
-	DebugFullFlowRegister(context.Context, *DebugFullFlowRegisterRequest) (*DebugFullFlowRegisterResponse, error)
-	DebugFullFlowExistence(context.Context, *DebugFullFlowExistenceRequest) (*DebugFullFlowExistenceResponse, error)
+	DebugFullFlowDeposit(context.Context, *DebugFullFlowDepositRequest) (*DebugFullFlowDepositResponse, error)
+	DebugFullFlowTransfer(context.Context, *DebugFullFlowTransferRequest) (*DebugFullFlowTransferResponse, error)
+	DebugFullFlowWithdraw(context.Context, *DebugFullFlowWithdrawRequest) (*DebugFullFlowWithdrawResponse, error)
 	mustEmbedUnimplementedLayerTwoServiceServer()
 }
 
@@ -127,11 +138,14 @@ func (UnimplementedLayerTwoServiceServer) DebugTransfer(context.Context, *DebugT
 func (UnimplementedLayerTwoServiceServer) DebugWithdraw(context.Context, *DebugWithdrawRequest) (*DebugWithdrawResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DebugWithdraw not implemented")
 }
-func (UnimplementedLayerTwoServiceServer) DebugFullFlowRegister(context.Context, *DebugFullFlowRegisterRequest) (*DebugFullFlowRegisterResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DebugFullFlowRegister not implemented")
+func (UnimplementedLayerTwoServiceServer) DebugFullFlowDeposit(context.Context, *DebugFullFlowDepositRequest) (*DebugFullFlowDepositResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DebugFullFlowDeposit not implemented")
 }
-func (UnimplementedLayerTwoServiceServer) DebugFullFlowExistence(context.Context, *DebugFullFlowExistenceRequest) (*DebugFullFlowExistenceResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DebugFullFlowExistence not implemented")
+func (UnimplementedLayerTwoServiceServer) DebugFullFlowTransfer(context.Context, *DebugFullFlowTransferRequest) (*DebugFullFlowTransferResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DebugFullFlowTransfer not implemented")
+}
+func (UnimplementedLayerTwoServiceServer) DebugFullFlowWithdraw(context.Context, *DebugFullFlowWithdrawRequest) (*DebugFullFlowWithdrawResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DebugFullFlowWithdraw not implemented")
 }
 func (UnimplementedLayerTwoServiceServer) mustEmbedUnimplementedLayerTwoServiceServer() {}
 
@@ -218,38 +232,56 @@ func _LayerTwoService_DebugWithdraw_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _LayerTwoService_DebugFullFlowRegister_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DebugFullFlowRegisterRequest)
+func _LayerTwoService_DebugFullFlowDeposit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DebugFullFlowDepositRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LayerTwoServiceServer).DebugFullFlowRegister(ctx, in)
+		return srv.(LayerTwoServiceServer).DebugFullFlowDeposit(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.LayerTwoService/DebugFullFlowRegister",
+		FullMethod: "/api.LayerTwoService/DebugFullFlowDeposit",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LayerTwoServiceServer).DebugFullFlowRegister(ctx, req.(*DebugFullFlowRegisterRequest))
+		return srv.(LayerTwoServiceServer).DebugFullFlowDeposit(ctx, req.(*DebugFullFlowDepositRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _LayerTwoService_DebugFullFlowExistence_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DebugFullFlowExistenceRequest)
+func _LayerTwoService_DebugFullFlowTransfer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DebugFullFlowTransferRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LayerTwoServiceServer).DebugFullFlowExistence(ctx, in)
+		return srv.(LayerTwoServiceServer).DebugFullFlowTransfer(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.LayerTwoService/DebugFullFlowExistence",
+		FullMethod: "/api.LayerTwoService/DebugFullFlowTransfer",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LayerTwoServiceServer).DebugFullFlowExistence(ctx, req.(*DebugFullFlowExistenceRequest))
+		return srv.(LayerTwoServiceServer).DebugFullFlowTransfer(ctx, req.(*DebugFullFlowTransferRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LayerTwoService_DebugFullFlowWithdraw_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DebugFullFlowWithdrawRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LayerTwoServiceServer).DebugFullFlowWithdraw(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.LayerTwoService/DebugFullFlowWithdraw",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LayerTwoServiceServer).DebugFullFlowWithdraw(ctx, req.(*DebugFullFlowWithdrawRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -278,12 +310,16 @@ var LayerTwoService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _LayerTwoService_DebugWithdraw_Handler,
 		},
 		{
-			MethodName: "DebugFullFlowRegister",
-			Handler:    _LayerTwoService_DebugFullFlowRegister_Handler,
+			MethodName: "DebugFullFlowDeposit",
+			Handler:    _LayerTwoService_DebugFullFlowDeposit_Handler,
 		},
 		{
-			MethodName: "DebugFullFlowExistence",
-			Handler:    _LayerTwoService_DebugFullFlowExistence_Handler,
+			MethodName: "DebugFullFlowTransfer",
+			Handler:    _LayerTwoService_DebugFullFlowTransfer_Handler,
+		},
+		{
+			MethodName: "DebugFullFlowWithdraw",
+			Handler:    _LayerTwoService_DebugFullFlowWithdraw_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

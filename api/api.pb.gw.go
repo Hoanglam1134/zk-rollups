@@ -169,8 +169,8 @@ func local_request_LayerTwoService_DebugWithdraw_0(ctx context.Context, marshale
 
 }
 
-func request_LayerTwoService_DebugFullFlowRegister_0(ctx context.Context, marshaler runtime.Marshaler, client LayerTwoServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq DebugFullFlowRegisterRequest
+func request_LayerTwoService_DebugFullFlowDeposit_0(ctx context.Context, marshaler runtime.Marshaler, client LayerTwoServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq DebugFullFlowDepositRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -181,13 +181,13 @@ func request_LayerTwoService_DebugFullFlowRegister_0(ctx context.Context, marsha
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.DebugFullFlowRegister(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.DebugFullFlowDeposit(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_LayerTwoService_DebugFullFlowRegister_0(ctx context.Context, marshaler runtime.Marshaler, server LayerTwoServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq DebugFullFlowRegisterRequest
+func local_request_LayerTwoService_DebugFullFlowDeposit_0(ctx context.Context, marshaler runtime.Marshaler, server LayerTwoServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq DebugFullFlowDepositRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -198,13 +198,13 @@ func local_request_LayerTwoService_DebugFullFlowRegister_0(ctx context.Context, 
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.DebugFullFlowRegister(ctx, &protoReq)
+	msg, err := server.DebugFullFlowDeposit(ctx, &protoReq)
 	return msg, metadata, err
 
 }
 
-func request_LayerTwoService_DebugFullFlowExistence_0(ctx context.Context, marshaler runtime.Marshaler, client LayerTwoServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq DebugFullFlowExistenceRequest
+func request_LayerTwoService_DebugFullFlowTransfer_0(ctx context.Context, marshaler runtime.Marshaler, client LayerTwoServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq DebugFullFlowTransferRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -215,13 +215,13 @@ func request_LayerTwoService_DebugFullFlowExistence_0(ctx context.Context, marsh
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.DebugFullFlowExistence(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.DebugFullFlowTransfer(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_LayerTwoService_DebugFullFlowExistence_0(ctx context.Context, marshaler runtime.Marshaler, server LayerTwoServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq DebugFullFlowExistenceRequest
+func local_request_LayerTwoService_DebugFullFlowTransfer_0(ctx context.Context, marshaler runtime.Marshaler, server LayerTwoServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq DebugFullFlowTransferRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -232,7 +232,41 @@ func local_request_LayerTwoService_DebugFullFlowExistence_0(ctx context.Context,
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.DebugFullFlowExistence(ctx, &protoReq)
+	msg, err := server.DebugFullFlowTransfer(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+func request_LayerTwoService_DebugFullFlowWithdraw_0(ctx context.Context, marshaler runtime.Marshaler, client LayerTwoServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq DebugFullFlowWithdrawRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.DebugFullFlowWithdraw(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_LayerTwoService_DebugFullFlowWithdraw_0(ctx context.Context, marshaler runtime.Marshaler, server LayerTwoServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq DebugFullFlowWithdrawRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.DebugFullFlowWithdraw(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -323,7 +357,7 @@ func RegisterLayerTwoServiceHandlerServer(ctx context.Context, mux *runtime.Serv
 
 	})
 
-	mux.Handle("POST", pattern_LayerTwoService_DebugFullFlowRegister_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_LayerTwoService_DebugFullFlowDeposit_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -332,18 +366,18 @@ func RegisterLayerTwoServiceHandlerServer(ctx context.Context, mux *runtime.Serv
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_LayerTwoService_DebugFullFlowRegister_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_LayerTwoService_DebugFullFlowDeposit_0(rctx, inboundMarshaler, server, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_LayerTwoService_DebugFullFlowRegister_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_LayerTwoService_DebugFullFlowDeposit_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_LayerTwoService_DebugFullFlowExistence_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_LayerTwoService_DebugFullFlowTransfer_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -352,14 +386,34 @@ func RegisterLayerTwoServiceHandlerServer(ctx context.Context, mux *runtime.Serv
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_LayerTwoService_DebugFullFlowExistence_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_LayerTwoService_DebugFullFlowTransfer_0(rctx, inboundMarshaler, server, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_LayerTwoService_DebugFullFlowExistence_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_LayerTwoService_DebugFullFlowTransfer_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_LayerTwoService_DebugFullFlowWithdraw_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_LayerTwoService_DebugFullFlowWithdraw_0(rctx, inboundMarshaler, server, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_LayerTwoService_DebugFullFlowWithdraw_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -484,7 +538,7 @@ func RegisterLayerTwoServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 
 	})
 
-	mux.Handle("POST", pattern_LayerTwoService_DebugFullFlowRegister_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_LayerTwoService_DebugFullFlowDeposit_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -493,18 +547,18 @@ func RegisterLayerTwoServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_LayerTwoService_DebugFullFlowRegister_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_LayerTwoService_DebugFullFlowDeposit_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_LayerTwoService_DebugFullFlowRegister_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_LayerTwoService_DebugFullFlowDeposit_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_LayerTwoService_DebugFullFlowExistence_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_LayerTwoService_DebugFullFlowTransfer_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -513,14 +567,34 @@ func RegisterLayerTwoServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_LayerTwoService_DebugFullFlowExistence_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_LayerTwoService_DebugFullFlowTransfer_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_LayerTwoService_DebugFullFlowExistence_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_LayerTwoService_DebugFullFlowTransfer_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_LayerTwoService_DebugFullFlowWithdraw_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_LayerTwoService_DebugFullFlowWithdraw_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_LayerTwoService_DebugFullFlowWithdraw_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -536,9 +610,11 @@ var (
 
 	pattern_LayerTwoService_DebugWithdraw_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"debug", "withdraw"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_LayerTwoService_DebugFullFlowRegister_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"debug", "full-register"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_LayerTwoService_DebugFullFlowDeposit_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"debug", "full-deposit"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_LayerTwoService_DebugFullFlowExistence_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"debug", "full-existence"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_LayerTwoService_DebugFullFlowTransfer_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"debug", "full-transfer"}, "", runtime.AssumeColonVerbOpt(true)))
+
+	pattern_LayerTwoService_DebugFullFlowWithdraw_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"debug", "full-withdraw"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
@@ -550,7 +626,9 @@ var (
 
 	forward_LayerTwoService_DebugWithdraw_0 = runtime.ForwardResponseMessage
 
-	forward_LayerTwoService_DebugFullFlowRegister_0 = runtime.ForwardResponseMessage
+	forward_LayerTwoService_DebugFullFlowDeposit_0 = runtime.ForwardResponseMessage
 
-	forward_LayerTwoService_DebugFullFlowExistence_0 = runtime.ForwardResponseMessage
+	forward_LayerTwoService_DebugFullFlowTransfer_0 = runtime.ForwardResponseMessage
+
+	forward_LayerTwoService_DebugFullFlowWithdraw_0 = runtime.ForwardResponseMessage
 )
